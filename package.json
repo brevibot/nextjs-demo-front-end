@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:war": "rimraf out dashboard-frontend.war && next build --config next.config.war.mjs && node scripts/prepare-war.js && cd out && jar -cvf ../dashboard-frontend.war ."
+    "build:war": "rimraf out dist && cross-env BUILD_MODE=war next build && node scripts/prepare-war.js && mkdirp dist && cd out && jar -cvf ../dist/dashboard-frontend.war ."
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.18",
@@ -25,6 +25,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "cross-env": "^7.0.3",
     "eslint": "^8",
     "eslint-config-next": "^14.2.4",
     "typescript": "^5",

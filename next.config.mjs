@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  // The proxy for connecting to the backend during development
+
+// Default configuration for development (npm run dev)
+let nextConfig = {
   async rewrites() {
     return [
       {
@@ -10,5 +11,18 @@ const nextConfig = {
     ];
   },
 };
+
+// WAR build configuration (npm run build:war)
+if (process.env.BUILD_MODE === 'war') {
+  nextConfig = {
+    output: 'export',
+    typescript: {
+      ignoreBuildErrors: true,
+    },
+    eslint: {
+      ignoreDuringBuilds: true,
+    },
+  };
+}
 
 export default nextConfig;
