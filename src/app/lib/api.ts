@@ -5,7 +5,6 @@ export class ApiDownError extends Error {
   }
 }
 
-// Custom error for unauthorized access
 export class UnauthorizedError extends Error {
   constructor(message?: string) {
     super(message || "Unauthorized Access");
@@ -13,17 +12,22 @@ export class UnauthorizedError extends Error {
   }
 }
 
+// Get the backend API URL from environment variables.
+// Fallback to the default Spring Boot port for local development.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+
 export async function apiFetch(url: string, options?: RequestInit) {
   let response;
+  // Prepend the full backend URL to the request.
+  const fullUrl = `${API_BASE_URL}${url}`;
+
   try {
-    response = await fetch(url, options);
+    response = await fetch(fullUrl, options);
   } catch (error) {
-    // This block catches client-side network errors (e.g., DNS issues, no internet)
     console.error("Network error or API is down:", error);
     throw new ApiDownError();
   }
 
-  // Check for server-side proxy/gateway errors which indicate the backend is down
   if (response.status >= 500 && response.status <= 504) {
       console.error("Backend is down or unreachable. Received status:", response.status);
       throw new ApiDownError();
@@ -38,7 +42,6 @@ export async function apiFetch(url: string, options?: RequestInit) {
     throw new Error(errorData.message || `An unknown error occurred. Status: ${response.status}`);
   }
   
-  // Handle cases where the response is OK but has no content (e.g., 204)
   if (response.status === 204) {
       return null;
   }

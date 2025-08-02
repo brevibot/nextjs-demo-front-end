@@ -1,16 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Add a rewrite to proxy API requests to the Spring Boot backend
-  // This avoids CORS issues and keeps the frontend code clean.
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:8080/api/:path*', // Proxy to Spring Boot
-      },
-    ];
-  },
+  // This tells Next.js to output a static site to the 'out' folder.
+  output: 'export',
+
+  // The rewrites proxy is removed because it only works with a running Next.js server.
+  // We will now call the backend API directly from the browser.
 };
 
 export default nextConfig;
