@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { apiFetch, UnauthorizedError } from '../../lib/api';
+import { apiFetch, UnauthorizedError } from '../lib/api';
 import UnauthorizedAccess from '../components/UnauthorizedAccess';
 
 export default function AdminPage() {

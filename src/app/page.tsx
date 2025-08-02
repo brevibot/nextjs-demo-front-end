@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Build, SpringApiResponse } from './types';
-import { apiFetch, UnauthorizedError } from '../lib/api';
+import { apiFetch, UnauthorizedError } from '@/app/lib/api';
 import UnauthorizedAccess from './components/UnauthorizedAccess';
 
 const getStatusColor = (status: Build['buildStatus']) => {

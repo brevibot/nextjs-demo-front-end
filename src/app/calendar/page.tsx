@@ -7,7 +7,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import { ApiEvent } from '../types';
-import { apiFetch, UnauthorizedError } from '../../lib/api';
+import { apiFetch, UnauthorizedError } from '../lib/api';
 import UnauthorizedAccess from '../components/UnauthorizedAccess';
 
 export default function CalendarPage() {
