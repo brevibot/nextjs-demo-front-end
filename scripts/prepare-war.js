@@ -17,10 +17,6 @@ const webXmlContent = `<?xml version="1.0" encoding="UTF-8"?>
     </welcome-file-list>
 </web-app>`;
 
-// Create the WEB-INF directory
 mkdirp.sync(webInfDir);
-
-// Write the web.xml file
 fs.writeFileSync(webXmlPath, webXmlContent, 'utf8');
-
 console.log('Successfully created WEB-INF/web.xml for WAR packaging.');

@@ -5,7 +5,6 @@ type BuildDetailPageProps = {
   params: { id: string };
 };
 
-// *** FIX: Add generateStaticParams to tell Next.js which pages to build ***
 export async function generateStaticParams() {
   try {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
@@ -24,7 +23,6 @@ export async function generateStaticParams() {
     return [];
   }
 }
-
 
 async function getBuildData(id: string) {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
