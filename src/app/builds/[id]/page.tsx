@@ -7,18 +7,27 @@ type BuildDetailPageProps = {
 
 // *** FIX: Add generateStaticParams to tell Next.js which pages to build ***
 export async function generateStaticParams() {
-  const API_BASE_URL = 'http://localhost:8080';
-  const res = await fetch(`${API_BASE_URL}/api/builds`);
-  const data: SpringApiResponse = await res.json();
-  
-  return data._embedded.builds.map((build) => ({
-    id: build.id.toString(),
-  }));
+  try {
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+    const res = await fetch(`${API_BASE_URL}/api/builds`);
+    if (!res.ok) {
+        console.error("Failed to fetch builds for static generation, returning empty array.");
+        return [];
+    }
+    const data: SpringApiResponse = await res.json();
+    
+    return data._embedded.builds.map((build) => ({
+      id: build.id.toString(),
+    }));
+  } catch (error) {
+    console.error("Error in generateStaticParams, backend might be down. Returning empty array.", error);
+    return [];
+  }
 }
 
 
 async function getBuildData(id: string) {
-  const API_BASE_URL = 'http://localhost:8080';
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
   
   const buildRes = await fetch(`${API_BASE_URL}/api/builds/${id}`, { cache: 'no-store' });
   if (!buildRes.ok) throw new Error(`Failed to fetch build details for build ID #${id}. Status: ${buildRes.status}`);
