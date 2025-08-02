@@ -1,100 +1,135 @@
-"use client";
+import { Build, Change, SpringApiResponse } from '@/app/types';
+import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle, FaDownload, FaGithub, FaBoxOpen } from 'react-icons/fa';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { Build, Change } from '@/app/types';
-import { apiFetch, UnauthorizedError, ApiDownError } from '@/app/lib/api';
-import UnauthorizedAccess from '@/app/components/UnauthorizedAccess';
-import ApiDownErrorComponent from '@/app/components/ApiDownError';
+type BuildDetailPageProps = {
+  params: { id: string };
+};
 
-export default function BuildDetailPage() {
-    const { id } = useParams();
-    const [build, setBuild] = useState<Build | null>(null);
-    const [changes, setChanges] = useState<Change[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isUnauthorized, setIsUnauthorized] = useState(false);
-    const [isApiDown, setIsApiDown] = useState(false);
+export async function generateStaticParams() {
+  try {
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+    const res = await fetch(`${API_BASE_URL}/api/builds`);
+    if (!res.ok) {
+        console.error("Failed to fetch builds for static generation, returning empty array.");
+        return [];
+    }
+    const data: SpringApiResponse = await res.json();
+    
+    return data._embedded.builds.map((build) => ({
+      id: build.id.toString(),
+    }));
+  } catch (error) {
+    console.error("Error in generateStaticParams, backend might be down. Returning empty array.", error);
+    return [];
+  }
+}
 
-    useEffect(() => {
-        if (!id) return;
+async function getBuildData(id: string) {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+  
+  const buildRes = await fetch(`${API_BASE_URL}/api/builds/${id}`, { cache: 'no-store' });
+  if (!buildRes.ok) throw new Error(`Failed to fetch build details for build ID #${id}. Status: ${buildRes.status}`);
+  const build: Build = await buildRes.json();
 
-        const fetchBuildDetails = async () => {
-            try {
-                const buildData = await apiFetch<Build>(`/api/builds/${id}`);
-                setBuild(buildData);
+  if (!build._links.changes || !build._links.changes.href) {
+      return { build, changes: [] };
+  }
+  
+  const changesRes = await fetch(build._links.changes.href, { cache: 'no-store' });
+  if (!changesRes.ok) throw new Error('Failed to fetch build changes.');
+  const changesData = await changesRes.json();
+  const changes: Change[] = changesData._embedded?.changes || [];
+  
+  return { build, changes };
+}
 
-                if (buildData._links.changes.href) {
-                    const changesData = await apiFetch(buildData._links.changes.href);
-                    setChanges(changesData._embedded?.changes || []);
-                }
-            } catch (err) {
-                if (err instanceof UnauthorizedError) {
-                  setIsUnauthorized(true);
-                } else if (err instanceof ApiDownError) {
-                  setIsApiDown(true);
-                } else {
-                  setError((err as Error).message);
-                }
-            } finally {
-                setIsLoading(false);
-            }
-        };
+export default async function BuildDetailPage({ params }: BuildDetailPageProps) {
+  const { id } = params;
 
-        fetchBuildDetails();
-    }, [id]);
-
-    if (isApiDown) return <ApiDownErrorComponent />;
-    if (isUnauthorized) return <UnauthorizedAccess />;
-    if (isLoading) return <div className="d-flex justify-content-center p-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
-    if (error) return <div className="alert alert-danger text-center m-4" role="alert">Error: {error}</div>;
-    if (!build) return <div className="alert alert-warning text-center m-4" role="alert">Build not found.</div>;
+  try {
+    const { build, changes } = await getBuildData(id);
+    const isSuccess = build.buildStatus === 'SUCCESS';
 
     return (
-        <main className="container py-5">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <h1 className="display-5 fw-bold">Build Details</h1>
-                <Link href={`/approval/${id}`} className="btn btn-success btn-lg">Start Approval Process</Link>
+      <main className="container py-5">
+        <div className="p-5 mb-4 bg-body-tertiary rounded-3 border">
+          <div className="container-fluid py-4">
+            <h1 className="display-5 fw-bold">Version {`${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`}</h1>
+            <div className={`d-flex align-items-center fs-4 mb-3 ${isSuccess ? 'text-success' : 'text-danger'}`}>
+              {isSuccess ? <FaCheckCircle className="me-2" /> : <FaExclamationCircle className="me-2" />}
+              {build.buildStatus}
             </div>
-            
-            <div className="card shadow-sm">
-                <div className="card-header bg-light">
-                    <div className="d-flex justify-content-between align-items-center">
-                        <h2 className="h4 mb-0">Build #{build.buildNumber}</h2>
-                        <span className="badge bg-primary fs-6">{`${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`}</span>
-                    </div>
-                </div>
-                <div className="card-body">
-                    <div className="row">
-                        <div className="col-md-6">
-                            <p><strong>Status:</strong> <span className={`text-${build.buildStatus === 'SUCCESS' ? 'success' : 'danger'}`}>{build.buildStatus}</span></p>
-                            <p><strong>Branch:</strong> {build.branch}</p>
-                            <p><strong>Date:</strong> {new Date(build.date).toLocaleString()}</p>
-                        </div>
-                        <div className="col-md-6 text-md-end">
-                             <Link href={build.githubActionLink} className="btn btn-secondary me-2 mb-2" target="_blank" rel="noopener noreferrer">View on GitHub</Link>
-                             <Link href={build.sonatypeNexusLink} className="btn btn-info mb-2" target="_blank" rel="noopener noreferrer">View on Nexus</Link>
-                        </div>
-                    </div>
+            <p className="col-md-8 fs-5 text-muted">Detailed summary for build #{build.buildNumber}.</p>
+          </div>
+        </div>
+        
+        <div className="row g-4 mb-5">
+          <div className="col-md-6"><InfoCard icon={<FaCodeBranch />} title="Branch" value={build.branch} /></div>
+          <div className="col-md-6"><InfoCard icon={<FaCalendarAlt />} title="Build Date" value={new Date(build.date).toLocaleString()} /></div>
+        </div>
 
-                    <hr />
+        <div className="row g-4 mb-5">
+          <div className="col-md-4">
+            <LinkCard icon={<FaDownload />} title="Install" href={build.installLink} />
+          </div>
+          <div className="col-md-4">
+            <LinkCard icon={<FaGithub />} title="GitHub Action" href={build.githubActionLink} />
+          </div>
+          <div className="col-md-4">
+            <LinkCard icon={<FaBoxOpen />} title="Sonatype Nexus" href={build.sonatypeNexusLink} />
+          </div>
+        </div>
 
-                    <h3 className="mt-4">Changes</h3>
-                    {changes.length > 0 ? (
-                        <ul className="list-group">
-                            {changes.map(change => (
-                                <li key={change.hash} className="list-group-item">
-                                    <p className="mb-1"><strong>{change.message}</strong></p>
-                                    <small className="text-muted">by {change.author} - {change.hash}</small>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>No changes associated with this build.</p>
-                    )}
-                </div>
-            </div>
-        </main>
+        <div className="card shadow-sm">
+          <div className="card-header"><h4 className="mb-0">📜 Changes in this Build ({changes.length})</h4></div>
+          <ul className="list-group list-group-flush">
+            {changes.length > 0 ? (
+              changes.map((change) => (
+                <li key={change.hash} className="list-group-item d-flex align-items-center">
+                  <div className="flex-shrink-0 me-3 text-muted"><FaHashtag /></div>
+                  <div className="flex-grow-1">
+                    <p className="mb-0 fw-bold">{change.message}</p>
+                    <small className="text-muted">by {change.author} &bull; <a href={`https://github.com/example/repo/commit/${change.hash}`} target="_blank" rel="noopener noreferrer">{change.hash.substring(0, 7)}</a></small>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <li className="list-group-item">No changes found for this build.</li>
+            )}
+          </ul>
+        </div>
+      </main>
     );
+  } catch (error: any) {
+    return <div className="alert alert-danger text-center m-4">Error loading build details: {error.message}</div>;
+  }
+}
+
+function InfoCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
+  return (
+    <div className="card h-100">
+      <div className="card-body d-flex align-items-center">
+        <div className="fs-2 me-4 text-primary">{icon}</div>
+        <div>
+          <h5 className="card-title text-muted">{title}</h5>
+          <p className="card-text fs-5 fw-bold mb-0">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LinkCard({ icon, title, href }: { icon: React.ReactNode; title: string; href: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+      <div className="card h-100">
+        <div className="card-body d-flex align-items-center">
+          <div className="fs-2 me-4 text-primary">{icon}</div>
+          <div>
+            <h5 className="card-title text-muted">{title}</h5>
+          </div>
+        </div>
+      </div>
+    </a>
+  );
 }
