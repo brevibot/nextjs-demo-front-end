@@ -7,27 +7,32 @@ async function getBuildData(buildNumber: string) {
   const API_BASE_URL = 'http://localhost:8080'; // Point to the Spring Boot backend
   
   // Fetch main build details
+  // Note: Spring Data REST uses the entity ID by default, not the buildNumber field.
+  // We are assuming the ID and buildNumber are the same for this example.
   const buildRes = await fetch(`${API_BASE_URL}/api/builds/${buildNumber}`, { cache: 'no-store' });
-  if (!buildRes.ok) throw new Error('Failed to fetch build details.');
+  if (!buildRes.ok) throw new Error(`Failed to fetch build details for build #${buildNumber}. Status: ${buildRes.status}`);
   const build: Build = await buildRes.json();
 
   // Fetch associated changes using the link provided by the API
   if (!build._links.changes || !build._links.changes.href) {
-      throw new Error('Changes link missing in build data.');
+      // It's possible a build has no changes, so we don't throw an error, just return an empty array.
+      return { build, changes: [] };
   }
   
   const changesRes = await fetch(build._links.changes.href, { cache: 'no-store' });
   if (!changesRes.ok) throw new Error('Failed to fetch build changes.');
   const changesData = await changesRes.json();
-  const changes: Change[] = changesData._embedded.changes;
+  const changes: Change[] = changesData._embedded?.changes || [];
   
   return { build, changes };
 }
 
 
 export default async function BuildDetailPage({ params }: { params: { buildNumber: string } }) {
+  const { buildNumber } = params; // Destructure here to ensure the value is resolved.
+
   try {
-    const { build, changes } = await getBuildData(params.buildNumber);
+    const { build, changes } = await getBuildData(buildNumber);
     const isSuccess = build.buildStatus === 'SUCCESS';
 
     return (
@@ -51,14 +56,18 @@ export default async function BuildDetailPage({ params }: { params: { buildNumbe
         <div className="card shadow-sm">
           <div className="card-header"><h4 className="mb-0">📜 Changes in this Build ({changes.length})</h4></div>
           <ul className="list-group list-group-flush">
-            {changes.map((change) => (
-              <li key={change.hash} className="list-group-item d-flex align-items-center"><div className="flex-shrink-0 me-3 text-muted"><FaHashtag /></div>
-                <div className="flex-grow-1">
-                  <p className="mb-0 fw-bold">{change.message}</p>
-                  <small className="text-muted">by {change.author} &bull; {change.hash.substring(0, 7)}</small>
-                </div>
-              </li>
-            ))}
+            {changes.length > 0 ? (
+              changes.map((change) => (
+                <li key={change.hash} className="list-group-item d-flex align-items-center"><div className="flex-shrink-0 me-3 text-muted"><FaHashtag /></div>
+                  <div className="flex-grow-1">
+                    <p className="mb-0 fw-bold">{change.message}</p>
+                    <small className="text-muted">by {change.author} &bull; {change.hash.substring(0, 7)}</small>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <li className="list-group-item">No changes found for this build.</li>
+            )}
           </ul>
         </div>
       </main>

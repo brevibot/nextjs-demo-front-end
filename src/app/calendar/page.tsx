@@ -19,9 +19,7 @@ export default function CalendarPage() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        // Fetch from the real backend (proxied by next.config.ts)
         const data: SpringApiEventResponse = await apiFetch('/api/events');
-        // Update parsing to handle the Spring Data REST "_embedded" structure
         setEvents(data._embedded.events);
       } catch (err: any) {
         if (err instanceof UnauthorizedError) setIsUnauthorized(true);

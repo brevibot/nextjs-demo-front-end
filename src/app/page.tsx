@@ -1,103 +1,81 @@
-"use client";
+import { Build, Change } from '@/app/types';
+import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Build, SpringApiResponse } from './types';
-import { apiFetch, UnauthorizedError } from '@/app/lib/api';
-import UnauthorizedAccess from './components/UnauthorizedAccess';
+async function getBuildData(id: string) {
+  const API_BASE_URL = 'http://localhost:8080';
+  
+  const buildRes = await fetch(`${API_BASE_URL}/api/builds/${id}`, { cache: 'no-store' });
+  if (!buildRes.ok) throw new Error(`Failed to fetch build details for build ID #${id}. Status: ${buildRes.status}`);
+  const build: Build = await buildRes.json();
 
-const getStatusColor = (status: Build['buildStatus']) => {
-  switch (status) {
-    case 'SUCCESS': return 'success';
-    case 'FAILURE': return 'danger';
-    case 'IN_PROGRESS': return 'warning';
-    default: return 'secondary';
+  if (!build._links.changes || !build._links.changes.href) {
+      return { build, changes: [] };
   }
-};
+  
+  const changesRes = await fetch(build._links.changes.href, { cache: 'no-store' });
+  if (!changesRes.ok) throw new Error('Failed to fetch build changes.');
+  const changesData = await changesRes.json();
+  const changes: Change[] = changesData._embedded?.changes || [];
+  
+  return { build, changes };
+}
 
-export default function BuildsPage() {
-  const [builds, setBuilds] = useState<Build[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isUnauthorized, setIsUnauthorized] = useState(false);
+export default async function BuildDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
-  useEffect(() => {
-    const fetchAndProcessBuilds = async () => {
-      try {
-        const data: SpringApiResponse = await apiFetch('/api/builds');
-        let fetchedBuilds = data._embedded.builds;
+  try {
+    const { build, changes } = await getBuildData(id);
+    const isSuccess = build.buildStatus === 'SUCCESS';
 
-        fetchedBuilds.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        const latestBuildsByBranch = new Map<string, Build>();
-        for (const build of fetchedBuilds) {
-          if (build.buildStatus === "SUCCESS" && !latestBuildsByBranch.has(build.branch)) {
-            latestBuildsByBranch.set(build.branch, build);
-          }
-        }
-        fetchedBuilds.forEach(build => {
-          build.tags = [];
-          if (build.isRelease) build.tags.push("Released");
-          const latestForBranch = latestBuildsByBranch.get(build.branch);
-          if (latestForBranch && latestForBranch.buildNumber === build.buildNumber) {
-            build.tags.push("New");
-          }
-        });
-        setBuilds(fetchedBuilds);
-      } catch (err: any) {
-        if (err instanceof UnauthorizedError) setIsUnauthorized(true);
-        else setError(err.message || 'Failed to load builds.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchAndProcessBuilds();
-    if (error || isUnauthorized) return;
-    const intervalId = setInterval(fetchAndProcessBuilds, 10000);
-    return () => clearInterval(intervalId);
-  }, [error, isUnauthorized]);
-
-  if (isUnauthorized) return <UnauthorizedAccess />;
-  if (isLoading) return <div className="d-flex justify-content-center p-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
-  if (error) return <div className="alert alert-danger text-center m-4">Error: {error}</div>;
-
-  return (
-    <main className="container py-4">
-      <div className="text-center mb-5">
-        <h1 className="display-4 fw-bold">🚀 Build Dashboard</h1>
-        <p className="lead text-muted">Latest builds, auto-refreshing every 10 seconds.</p>
-      </div>
-      <div className="row g-4">
-        {builds.map((build) => {
-          const statusColor = getStatusColor(build.buildStatus);
-          return (
-            <div key={build.buildNumber} className="col-lg-4 col-md-6">
-              <Link href={`/builds/${build.buildNumber}`} className="text-decoration-none">
-                <div className={`card h-100 shadow-sm border-start border-3 border-${statusColor}`}>
-                  <div className="card-header bg-light d-flex justify-content-between align-items-center">
-                    <span className="badge bg-secondary-subtle text-secondary-emphasis py-2 px-3">{build.branch}</span>
-                    <span className="fw-bold fs-5">{`${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`}</span>
-                  </div>
-                  <div className="card-body d-flex flex-column">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <span className={`fw-bold text-uppercase text-${statusColor}`}>{build.buildStatus}</span>
-                      <div>
-                        {build.tags?.includes("Released") && <span className="badge rounded-pill bg-primary-subtle text-primary-emphasis ms-2">Released</span>}
-                        {build.tags?.includes("New") && <span className="badge rounded-pill bg-success-subtle text-success-emphasis ms-2">New</span>}
-                      </div>
-                    </div>
-                    <p className="card-text text-muted small">Build #{build.buildNumber} &bull; {new Date(build.date).toLocaleString()}</p>
-                  </div>
-                  <div className="card-footer bg-light d-grid gap-2">
-                    <div className="btn btn-primary">View Details</div>
-                  </div>
-                </div>
-              </Link>
+    return (
+      <main className="container py-5">
+        <div className="p-5 mb-4 bg-body-tertiary rounded-3 border">
+          <div className="container-fluid py-4">
+            <h1 className="display-5 fw-bold">Version {`${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`}</h1>
+            <div className={`d-flex align-items-center fs-4 mb-3 ${isSuccess ? 'text-success' : 'text-danger'}`}>
+              {isSuccess ? <FaCheckCircle className="me-2" /> : <FaExclamationCircle className="me-2" />}
+              {build.buildStatus}
             </div>
-          );
-        })}
+            <p className="col-md-8 fs-5 text-muted">Detailed summary for build #{build.buildNumber}.</p>
+          </div>
+        </div>
+        
+        <div className="row g-4 mb-5">
+          <div className="col-md-6"><InfoCard icon={<FaCodeBranch />} title="Branch" value={build.branch} /></div>
+          <div className="col-md-6"><InfoCard icon={<FaCalendarAlt />} title="Build Date" value={new Date(build.date).toLocaleString()} /></div>
+        </div>
+
+        <div className="card shadow-sm">
+          <div className="card-header"><h4 className="mb-0">📜 Changes in this Build ({changes.length})</h4></div>
+          <ul className="list-group list-group-flush">
+            {changes.length > 0 ? (
+              changes.map((change) => (
+                <li key={change.hash} className="list-group-item d-flex align-items-center"><div className="flex-shrink-0 me-3 text-muted"><FaHashtag /></div>
+                  <div className="flex-grow-1">
+                    <p className="mb-0 fw-bold">{change.message}</p>
+                    <small className="text-muted">by {change.author} &bull; {change.hash.substring(0, 7)}</small>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <li className="list-group-item">No changes found for this build.</li>
+            )}
+          </ul>
+        </div>
+      </main>
+    );
+  } catch (error: any) {
+    return <div className="alert alert-danger text-center m-4">Error loading build details: {error.message}</div>;
+  }
+}
+
+function InfoCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
+  return (
+    <div className="card h-100"><div className="card-body d-flex align-items-center">
+      <div className="fs-2 me-4 text-primary">{icon}</div>
+      <div><h5 className="card-title text-muted">{title}</h5>
+        <p className="card-text fs-5 fw-bold mb-0">{value}</p>
       </div>
-    </main>
+    </div></div>
   );
 }

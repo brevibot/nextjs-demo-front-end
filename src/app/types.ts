@@ -1,4 +1,5 @@
 export interface Build {
+  id: number; // The primary key from the database
   buildNumber: number;
   majorVersion: number;
   minorVersion: number;
