@@ -1,6 +1,11 @@
 import { Build, Change } from '@/app/types';
 import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 
+// *** FIX: Define a specific type for the page props ***
+type BuildDetailPageProps = {
+  params: { id: string };
+};
+
 async function getBuildData(id: string) {
   const API_BASE_URL = 'http://localhost:8080';
   
@@ -20,7 +25,7 @@ async function getBuildData(id: string) {
   return { build, changes };
 }
 
-export default async function BuildDetailPage({ params }: { params: { id: string } }) {
+export default async function BuildDetailPage({ params }: BuildDetailPageProps) {
   const { id } = params;
 
   try {

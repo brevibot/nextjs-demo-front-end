@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:war": "next build && cp -r webapp/WEB-INF out/ && cd out && jar -cvf ../dashboard-frontend.war ."
+    "build:war": "npm run build && node scripts/prepare-war.js && cd out && jar -cvf ../dashboard-frontend.war ."
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.18",
@@ -30,6 +30,8 @@
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "rimraf": "^5.0.7",
+    "mkdirp": "^3.0.1"
   }
 }
