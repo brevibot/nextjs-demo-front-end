@@ -1,21 +1,14 @@
 import { Build, Change } from '@/app/types';
 import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 
-// This is a Server Component, so it fetches data directly from the backend.
-// The next.config.ts rewrite proxy does not apply here, so we use the full URL.
-async function getBuildData(buildNumber: string) {
-  const API_BASE_URL = 'http://localhost:8080'; // Point to the Spring Boot backend
+async function getBuildData(id: string) {
+  const API_BASE_URL = 'http://localhost:8080';
   
-  // Fetch main build details
-  // Note: Spring Data REST uses the entity ID by default, not the buildNumber field.
-  // We are assuming the ID and buildNumber are the same for this example.
-  const buildRes = await fetch(`${API_BASE_URL}/api/builds/${buildNumber}`, { cache: 'no-store' });
-  if (!buildRes.ok) throw new Error(`Failed to fetch build details for build #${buildNumber}. Status: ${buildRes.status}`);
+  const buildRes = await fetch(`${API_BASE_URL}/api/builds/${id}`, { cache: 'no-store' });
+  if (!buildRes.ok) throw new Error(`Failed to fetch build details for build ID #${id}. Status: ${buildRes.status}`);
   const build: Build = await buildRes.json();
 
-  // Fetch associated changes using the link provided by the API
   if (!build._links.changes || !build._links.changes.href) {
-      // It's possible a build has no changes, so we don't throw an error, just return an empty array.
       return { build, changes: [] };
   }
   
@@ -27,12 +20,11 @@ async function getBuildData(buildNumber: string) {
   return { build, changes };
 }
 
-
-export default async function BuildDetailPage({ params }: { params: { buildNumber: string } }) {
-  const { buildNumber } = params; // Destructure here to ensure the value is resolved.
+export default async function BuildDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   try {
-    const { build, changes } = await getBuildData(buildNumber);
+    const { build, changes } = await getBuildData(id);
     const isSuccess = build.buildStatus === 'SUCCESS';
 
     return (
