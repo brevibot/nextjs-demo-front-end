@@ -1,5 +1,6 @@
 import { Build, Change, SpringApiResponse } from '@/app/types';
-import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle, FaDownload, FaGithub, FaBoxOpen } from 'react-icons/fa';
+import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle, FaDownload, FaGithub, FaBoxOpen, FaClipboardCheck } from 'react-icons/fa';
+import Link from 'next/link';
 
 type BuildDetailPageProps = {
   params: { id: string };
@@ -69,14 +70,28 @@ export default async function BuildDetailPage({ params }: BuildDetailPageProps) 
         </div>
 
         <div className="row g-4 mb-5">
-          <div className="col-md-4">
+          <div className="col-md-3">
             <LinkCard icon={<FaDownload />} title="Install" href={build.installLink} />
           </div>
-          <div className="col-md-4">
+          <div className="col-md-3">
             <LinkCard icon={<FaGithub />} title="GitHub Action" href={build.githubActionLink} />
           </div>
-          <div className="col-md-4">
+          <div className="col-md-3">
             <LinkCard icon={<FaBoxOpen />} title="Sonatype Nexus" href={build.sonatypeNexusLink} />
+          </div>
+          <div className="col-md-3">
+            <Link href={`/approval/${id}`} legacyBehavior>
+              <a className="text-decoration-none">
+                <div className="card h-100">
+                  <div className="card-body d-flex align-items-center">
+                    <div className="fs-2 me-4 text-primary"><FaClipboardCheck /></div>
+                    <div>
+                      <h5 className="card-title text-muted">Approval</h5>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </Link>
           </div>
         </div>
 
