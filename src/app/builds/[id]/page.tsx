@@ -1,10 +1,21 @@
-import { Build, Change } from '@/app/types';
+import { Build, Change, SpringApiResponse } from '@/app/types';
 import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 
-// *** FIX: Define a specific type for the page props ***
 type BuildDetailPageProps = {
   params: { id: string };
 };
+
+// *** FIX: Add generateStaticParams to tell Next.js which pages to build ***
+export async function generateStaticParams() {
+  const API_BASE_URL = 'http://localhost:8080';
+  const res = await fetch(`${API_BASE_URL}/api/builds`);
+  const data: SpringApiResponse = await res.json();
+  
+  return data._embedded.builds.map((build) => ({
+    id: build.id.toString(),
+  }));
+}
+
 
 async function getBuildData(id: string) {
   const API_BASE_URL = 'http://localhost:8080';
