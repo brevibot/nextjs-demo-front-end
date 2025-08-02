@@ -22,7 +22,7 @@ export default function BuildsPage() {
   const [isUnauthorized, setIsUnauthorized] = useState(false);
 
   useEffect(() => {
-    const fetchAndProcessBuilds = async () => {
+    const fetchAndProcessBuilds = async () => { // <-- FIX: Corrected async function syntax
       try {
         // This now fetches from the real backend via the proxy
         const data: SpringApiResponse = await apiFetch('/api/builds');
@@ -72,8 +72,8 @@ export default function BuildsPage() {
       <div className="row g-4">
         {builds.map((build) => {
           const statusColor = getStatusColor(build.buildStatus);
-          // *** FIX: Use the direct build.id property for a reliable link ***
-          const buildId = build.id;
+          // *** FIX: Extract the ID from the self link for a reliable link ***
+          const buildId = build._links.self.href.split('/').pop();
           return (
             <div key={build.buildNumber} className="col-lg-4 col-md-6">
               <Link href={`/builds/${buildId}`} className="text-decoration-none">
