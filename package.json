@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:war": "rimraf out dashboard-frontend.war && npm run build && node scripts/prepare-war.js && cd out && jar -cvf ../dashboard-frontend.war ."
+    "build:war": "rimraf out dashboard-frontend.war && next build --config next.config.war.mjs && node scripts/prepare-war.js && cd out && jar -cvf ../dashboard-frontend.war ."
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.18",
