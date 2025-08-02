@@ -13,8 +13,8 @@ export class UnauthorizedError extends Error {
 }
 
 // Get the backend API URL from environment variables.
-// Fallback to the default Spring Boot port for local development.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+// Use an empty string for local development to leverage the Next.js proxy.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
 export async function apiFetch(url: string, options?: RequestInit) {
   let response;
