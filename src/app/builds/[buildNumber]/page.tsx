@@ -1,0 +1,71 @@
+import { Build, Change } from '@/app/types';
+import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+
+async function getBuildData(buildNumber: string) {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+  const buildRes = await fetch(`${API_BASE_URL}/api/builds/${buildNumber}`, { cache: 'no-store' });
+  if (!buildRes.ok) throw new Error('Failed to fetch build details.');
+  const build: Build = await buildRes.json();
+
+  if (!build._links.changes) throw new Error('Changes link missing in build data.');
+  
+  const changesRes = await fetch(`${API_BASE_URL}${build._links.changes.href}`, { cache: 'no-store' });
+  if (!changesRes.ok) throw new Error('Failed to fetch build changes.');
+  const { changes }: { changes: Change[] } = await changesRes.json();
+  
+  return { build, changes };
+}
+
+export default async function BuildDetailPage({ params }: { params: { buildNumber: string } }) {
+  try {
+    const { build, changes } = await getBuildData(params.buildNumber);
+    const isSuccess = build.buildStatus === 'SUCCESS';
+
+    return (
+      <main className="container py-5">
+        <div className="p-5 mb-4 bg-body-tertiary rounded-3 border">
+          <div className="container-fluid py-4">
+            <h1 className="display-5 fw-bold">Version {`${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`}</h1>
+            <div className={`d-flex align-items-center fs-4 mb-3 ${isSuccess ? 'text-success' : 'text-danger'}`}>
+              {isSuccess ? <FaCheckCircle className="me-2" /> : <FaExclamationCircle className="me-2" />}
+              {build.buildStatus}
+            </div>
+            <p className="col-md-8 fs-5 text-muted">Detailed summary for build #{build.buildNumber}.</p>
+          </div>
+        </div>
+        
+        <div className="row g-4 mb-5">
+          <div className="col-md-6"><InfoCard icon={<FaCodeBranch />} title="Branch" value={build.branch} /></div>
+          <div className="col-md-6"><InfoCard icon={<FaCalendarAlt />} title="Build Date" value={new Date(build.date).toLocaleString()} /></div>
+        </div>
+
+        <div className="card shadow-sm">
+          <div className="card-header"><h4 className="mb-0">📜 Changes in this Build ({changes.length})</h4></div>
+          <ul className="list-group list-group-flush">
+            {changes.map((change) => (
+              <li key={change.hash} className="list-group-item d-flex align-items-center"><div className="flex-shrink-0 me-3 text-muted"><FaHashtag /></div>
+                <div className="flex-grow-1">
+                  <p className="mb-0 fw-bold">{change.message}</p>
+                  <small className="text-muted">by {change.author} &bull; {change.hash.substring(0, 7)}</small>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </main>
+    );
+  } catch (error: any) {
+    return <div className="alert alert-danger text-center m-4">Error loading build details: {error.message}</div>;
+  }
+}
+
+function InfoCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
+  return (
+    <div className="card h-100"><div className="card-body d-flex align-items-center">
+      <div className="fs-2 me-4 text-primary">{icon}</div>
+      <div><h5 className="card-title text-muted">{title}</h5>
+        <p className="card-text fs-5 fw-bold mb-0">{value}</p>
+      </div>
+    </div></div>
+  );
+}
