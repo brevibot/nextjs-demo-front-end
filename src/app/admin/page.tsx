@@ -1,21 +1,23 @@
 "use client";
 
 import { useState } from 'react';
-import { apiFetch, UnauthorizedError } from '@/app/lib/api';
+import { apiFetch, UnauthorizedError, ApiDownError } from '@/app/lib/api';
 import UnauthorizedAccess from '@/app/components/UnauthorizedAccess';
+import ApiDownErrorComponent from '@/app/components/ApiDownError';
 
 export default function AdminPage() {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [formStatus, setFormStatus] = useState({ message: '', type: '' });
   const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [isApiDown, setIsApiDown] = useState(false);
 
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormStatus({ message: 'Publishing...', type: 'info' });
     setIsUnauthorized(false);
+    setIsApiDown(false);
     
     try {
-      // Send the message to the backend to be saved
       await apiFetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -24,12 +26,13 @@ export default function AdminPage() {
       
       setFormStatus({ message: 'Notification published successfully!', type: 'success' });
       setNotificationMessage('');
-
-      // The banner will now pick up the change automatically via polling,
-      // so no client-side channel is needed.
+      window.dispatchEvent(new Event("notificationChange"));
 
     } catch (error: any) {
-      if (error instanceof UnauthorizedError) {
+      if (error instanceof ApiDownError) {
+        setIsApiDown(true);
+        setFormStatus({ message: '', type: '' });
+      } else if (error instanceof UnauthorizedError) {
         setIsUnauthorized(true);
         setFormStatus({ message: 'You are not authorized to perform this action.', type: 'danger' });
       } else {
@@ -38,6 +41,7 @@ export default function AdminPage() {
     }
   };
 
+  if (isApiDown) return <ApiDownErrorComponent />;
   if (isUnauthorized) return <UnauthorizedAccess />;
 
   return (

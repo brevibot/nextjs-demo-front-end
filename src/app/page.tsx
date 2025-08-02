@@ -31,7 +31,7 @@ export default function BuildsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
-  const [isApiDown, setIsApiDown] = useState(false); // New state for API down
+  const [isApiDown, setIsApiDown] = useState(false);
   const [allBranches, setAllBranches] = useState<string[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
 
@@ -41,7 +41,6 @@ export default function BuildsPage() {
         const data: SpringApiResponse = await apiFetch('/api/builds');
         let fetchedBuilds = data._embedded.builds;
 
-        // ... (processing logic remains the same)
         fetchedBuilds.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         const latestBuildsByBranch = new Map<string, Build>();
         const uniqueBranches = new Set<string>();
@@ -62,7 +61,7 @@ export default function BuildsPage() {
         
         setBuilds(fetchedBuilds);
         setAllBranches(['all', ...Array.from(uniqueBranches).sort()]);
-        setIsApiDown(false); // If fetch succeeds, API is up
+        setIsApiDown(false);
       } catch (err: any) {
         if (err instanceof ApiDownError) setIsApiDown(true);
         else if (err instanceof UnauthorizedError) setIsUnauthorized(true);

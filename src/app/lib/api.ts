@@ -23,7 +23,7 @@ export async function apiFetch(url: string, options?: RequestInit) {
     throw new ApiDownError();
   }
 
-  // *** FIX: Check for server-side proxy/gateway errors which indicate the backend is down ***
+  // Check for server-side proxy/gateway errors which indicate the backend is down
   if (response.status >= 500 && response.status <= 504) {
       console.error("Backend is down or unreachable. Received status:", response.status);
       throw new ApiDownError();
