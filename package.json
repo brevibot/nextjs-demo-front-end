@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:war": "rimraf out dist && cross-env BUILD_MODE=war next build && node scripts/prepare-war.js && mkdirp dist && cd out && jar -cvf ../dist/dashboard-frontend.war ."
+    "test": "jest",
+    "build:war": "node scripts/prepare-war.js"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.18",
@@ -22,14 +23,18 @@
     "react-icons": "^5.5.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "cross-env": "^7.0.3",
     "eslint": "^8",
     "eslint-config-next": "^14.2.4",
-    "typescript": "^5",
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
     "mkdirp": "^3.0.1",
-    "rimraf": "^5.0.7"
+    "rimraf": "^5.0.7",
+    "typescript": "^5"
   }
 }
