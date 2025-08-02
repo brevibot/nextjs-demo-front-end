@@ -1,20 +1,29 @@
 import { Build, Change } from '@/app/types';
 import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 
+// This is a Server Component, so it fetches data directly from the backend.
+// The next.config.ts rewrite proxy does not apply here, so we use the full URL.
 async function getBuildData(buildNumber: string) {
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+  const API_BASE_URL = 'http://localhost:8080'; // Point to the Spring Boot backend
+  
+  // Fetch main build details
   const buildRes = await fetch(`${API_BASE_URL}/api/builds/${buildNumber}`, { cache: 'no-store' });
   if (!buildRes.ok) throw new Error('Failed to fetch build details.');
   const build: Build = await buildRes.json();
 
-  if (!build._links.changes) throw new Error('Changes link missing in build data.');
+  // Fetch associated changes using the link provided by the API
+  if (!build._links.changes || !build._links.changes.href) {
+      throw new Error('Changes link missing in build data.');
+  }
   
-  const changesRes = await fetch(`${API_BASE_URL}${build._links.changes.href}`, { cache: 'no-store' });
+  const changesRes = await fetch(build._links.changes.href, { cache: 'no-store' });
   if (!changesRes.ok) throw new Error('Failed to fetch build changes.');
-  const { changes }: { changes: Change[] } = await changesRes.json();
+  const changesData = await changesRes.json();
+  const changes: Change[] = changesData._embedded.changes;
   
   return { build, changes };
 }
+
 
 export default async function BuildDetailPage({ params }: { params: { buildNumber: string } }) {
   try {

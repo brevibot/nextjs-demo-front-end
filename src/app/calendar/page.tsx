@@ -6,12 +6,12 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
-import { ApiEvent } from '../types';
-import { apiFetch, UnauthorizedError } from '../lib/api';
-import UnauthorizedAccess from '../components/UnauthorizedAccess';
+import { CalendarEvent, SpringApiEventResponse } from '../types';
+import { apiFetch, UnauthorizedError } from '@/app/lib/api';
+import UnauthorizedAccess from '@/app/components/UnauthorizedAccess';
 
 export default function CalendarPage() {
-  const [events, setEvents] = useState<ApiEvent[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
@@ -19,8 +19,10 @@ export default function CalendarPage() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const data = await apiFetch('/api/events');
-        setEvents(data.events);
+        // Fetch from the real backend (proxied by next.config.ts)
+        const data: SpringApiEventResponse = await apiFetch('/api/events');
+        // Update parsing to handle the Spring Data REST "_embedded" structure
+        setEvents(data._embedded.events);
       } catch (err: any) {
         if (err instanceof UnauthorizedError) setIsUnauthorized(true);
         else setError(err.message || 'Failed to load events.');

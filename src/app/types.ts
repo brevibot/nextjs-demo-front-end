@@ -22,12 +22,20 @@ export interface SpringApiResponse {
   };
 }
 
-export interface ApiEvent {
+// Frontend event structure for FullCalendar
+export interface CalendarEvent {
   title: string;
   start: string;
   end: string;
   allDay: boolean;
   color?: string;
+}
+
+// The actual API response structure from Spring Data REST for events
+export interface SpringApiEventResponse {
+    _embedded: {
+        events: CalendarEvent[];
+    }
 }
 
 export interface Change {
