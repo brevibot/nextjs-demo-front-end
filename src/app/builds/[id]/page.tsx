@@ -1,5 +1,5 @@
 import { Build, Change, SpringApiResponse } from '@/app/types';
-import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { FaHashtag, FaCodeBranch, FaCalendarAlt, FaCheckCircle, FaExclamationCircle, FaDownload, FaGithub, FaBoxOpen } from 'react-icons/fa';
 
 type BuildDetailPageProps = {
   params: { id: string };
@@ -68,15 +68,28 @@ export default async function BuildDetailPage({ params }: BuildDetailPageProps) 
           <div className="col-md-6"><InfoCard icon={<FaCalendarAlt />} title="Build Date" value={new Date(build.date).toLocaleString()} /></div>
         </div>
 
+        <div className="row g-4 mb-5">
+          <div className="col-md-4">
+            <LinkCard icon={<FaDownload />} title="Install" href={build.installLink} />
+          </div>
+          <div className="col-md-4">
+            <LinkCard icon={<FaGithub />} title="GitHub Action" href={build.githubActionLink} />
+          </div>
+          <div className="col-md-4">
+            <LinkCard icon={<FaBoxOpen />} title="Sonatype Nexus" href={build.sonatypeNexusLink} />
+          </div>
+        </div>
+
         <div className="card shadow-sm">
           <div className="card-header"><h4 className="mb-0">📜 Changes in this Build ({changes.length})</h4></div>
           <ul className="list-group list-group-flush">
             {changes.length > 0 ? (
               changes.map((change) => (
-                <li key={change.hash} className="list-group-item d-flex align-items-center"><div className="flex-shrink-0 me-3 text-muted"><FaHashtag /></div>
+                <li key={change.hash} className="list-group-item d-flex align-items-center">
+                  <div className="flex-shrink-0 me-3 text-muted"><FaHashtag /></div>
                   <div className="flex-grow-1">
                     <p className="mb-0 fw-bold">{change.message}</p>
-                    <small className="text-muted">by {change.author} &bull; {change.hash.substring(0, 7)}</small>
+                    <small className="text-muted">by {change.author} &bull; <a href={`https://github.com/example/repo/commit/${change.hash}`} target="_blank" rel="noopener noreferrer">{change.hash.substring(0, 7)}</a></small>
                   </div>
                 </li>
               ))
@@ -94,11 +107,29 @@ export default async function BuildDetailPage({ params }: BuildDetailPageProps) 
 
 function InfoCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
   return (
-    <div className="card h-100"><div className="card-body d-flex align-items-center">
-      <div className="fs-2 me-4 text-primary">{icon}</div>
-      <div><h5 className="card-title text-muted">{title}</h5>
-        <p className="card-text fs-5 fw-bold mb-0">{value}</p>
+    <div className="card h-100">
+      <div className="card-body d-flex align-items-center">
+        <div className="fs-2 me-4 text-primary">{icon}</div>
+        <div>
+          <h5 className="card-title text-muted">{title}</h5>
+          <p className="card-text fs-5 fw-bold mb-0">{value}</p>
+        </div>
       </div>
-    </div></div>
+    </div>
+  );
+}
+
+function LinkCard({ icon, title, href }: { icon: React.ReactNode; title: string; href: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+      <div className="card h-100">
+        <div className="card-body d-flex align-items-center">
+          <div className="fs-2 me-4 text-primary">{icon}</div>
+          <div>
+            <h5 className="card-title text-muted">{title}</h5>
+          </div>
+        </div>
+      </div>
+    </a>
   );
 }
