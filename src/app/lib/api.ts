@@ -1,4 +1,3 @@
-// Custom error for when the API server is down or unreachable
 export class ApiDownError extends Error {
   constructor(message?: string) {
     super(message || "API is unreachable");
@@ -19,9 +18,15 @@ export async function apiFetch(url: string, options?: RequestInit) {
   try {
     response = await fetch(url, options);
   } catch (error) {
-    // This block catches network errors (e.g., failed to fetch, DNS issues)
+    // This block catches client-side network errors (e.g., DNS issues, no internet)
     console.error("Network error or API is down:", error);
     throw new ApiDownError();
+  }
+
+  // *** FIX: Check for server-side proxy/gateway errors which indicate the backend is down ***
+  if (response.status >= 500 && response.status <= 504) {
+      console.error("Backend is down or unreachable. Received status:", response.status);
+      throw new ApiDownError();
   }
 
   if (response.status === 401 || response.status === 403) {
