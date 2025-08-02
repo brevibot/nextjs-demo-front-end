@@ -23,6 +23,8 @@ export default function RootLayout({
               <Link href="/" className="nav-link">Builds</Link>
               <Link href="/calendar" className="nav-link">Calendar</Link>
               <Link href="/admin" className="nav-link">Admin</Link>
+              {/* This is a generic link. In a real application, you'd link to a specific build's approval page. */}
+              <Link href="/approval/1" className="nav-link">Approval</Link>
             </div>
           </div>
         </nav>
