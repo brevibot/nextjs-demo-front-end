@@ -4,10 +4,10 @@ import React from 'react';
 import { FaClipboardList } from 'react-icons/fa';
 
 interface Change {
-  description: string;
+  changeDescription: string;
   ticketNumber: string;
   reason: string;
-  impact: string;
+  impactDescription: string;
 }
 
 interface ChangesSummaryCardProps {
@@ -25,10 +25,10 @@ const ChangesSummaryCard: React.FC<ChangesSummaryCardProps> = ({ changes }) => {
         {changes.length > 0 ? (
           changes.map((change, index) => (
             <div key={index} className="mb-3 p-3 border rounded bg-light">
-              <h6 className="fw-bold">{change.description || 'No description'}</h6>
+              <h6 className="fw-bold">{change.changeDescription || 'No description'}</h6>
               <p className="mb-1"><strong>Ticket:</strong> {change.ticketNumber || 'N/A'}</p>
               <p className="mb-1"><strong>Reason:</strong> {change.reason || 'N/A'}</p>
-              <p className="mb-0"><strong>Impact:</strong> {change.impact || 'N/A'}</p>
+              <p className="mb-0"><strong>Impact:</strong> {change.impactDescription || 'N/A'}</p>
             </div>
           ))
         ) : (

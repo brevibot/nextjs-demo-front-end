@@ -25,7 +25,7 @@ export default function ApprovalPage() {
   const { id } = useParams();
   const [currentStage, setCurrentStage] = useState<Stage>('deployer');
   const [pendingApprovers, setPendingApprovers] = useState<string[]>([]);
-  const [changes, setChanges] = useState([{ description: '', ticketNumber: '', reason: 'code fix', impact: '' }]);
+  const [changes, setChanges] = useState([{ changeDescription: '', ticketNumber: '', reason: 'code fix', impactDescription: '' }]);
   const [qaAttachment, setQaAttachment] = useState<File | null>(null);
   const [isAddingChanges, setIsAddingChanges] = useState(false);
   const [deploymentDate, setDeploymentDate] = useState('');
@@ -62,7 +62,7 @@ export default function ApprovalPage() {
   }, [id]);
 
   const handleAddChange = () => {
-    setChanges([...changes, { description: '', ticketNumber: '', reason: 'code fix', impact: '' }]);
+    setChanges([...changes, { changeDescription: '', ticketNumber: '', reason: 'code fix', impactDescription: '' }]);
   };
   
   const handleRemoveChange = (indexToRemove: number) => {
@@ -77,7 +77,7 @@ export default function ApprovalPage() {
 
   const handleTeamLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const submittedChanges = changes.filter(c => c.description.trim() !== '');
+    const submittedChanges = changes.filter(c => c.changeDescription.trim() !== '');
     setChanges(submittedChanges.length > 0 ? submittedChanges : []);
     if (approvalRequestId) {
       try {
@@ -224,10 +224,10 @@ export default function ApprovalPage() {
                           type="text"
                           className="form-control mb-2"
                           placeholder="Change Description"
-                          value={change.description}
+                          value={change.changeDescription}
                           onChange={(e) => {
                             const newChanges = [...changes];
-                            newChanges[index].description = e.target.value;
+                            newChanges[index].changeDescription = e.target.value;
                             setChanges(newChanges);
                           }}
                         />
@@ -258,10 +258,10 @@ export default function ApprovalPage() {
                         <textarea
                           className="form-control"
                           placeholder="Impact Description"
-                          value={change.impact}
+                          value={change.impactDescription}
                           onChange={(e) => {
                               const newChanges = [...changes];
-                              newChanges[index].impact = e.target.value;
+                              newChanges[index].impactDescription = e.target.value;
                               setChanges(newChanges);
                           }}
                         ></textarea>
