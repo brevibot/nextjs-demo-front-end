@@ -26,6 +26,8 @@ export default function ApprovalPage() {
   const [pendingApprovers, setPendingApprovers] = useState<string[]>([]);
   const [changes, setChanges] = useState([{ description: '', ticketNumber: '', reason: 'code fix', impact: '' }]);
   const [qaAttachment, setQaAttachment] = useState<File | null>(null);
+  const [isAddingChanges, setIsAddingChanges] = useState(false);
+  const [deploymentDate, setDeploymentDate] = useState('');
   const [buildInfo, setBuildInfo] = useState({
     id: id as string,
     version: '1.2.3',
@@ -33,7 +35,8 @@ export default function ApprovalPage() {
     commitHash: 'a1b2c3d4e5f6',
     timestamp: new Date().toLocaleString(),
     releaseNotes: 'This release includes several bug fixes and performance improvements, enhancing the overall stability of the application.',
-    installLink: `/downloads/build-${id}.zip`
+    installLink: `/downloads/build-${id}.zip`,
+    deploymentDate: '',
   });
 
   useEffect(() => {
@@ -48,16 +51,21 @@ export default function ApprovalPage() {
     setChanges(changes.filter((_, index) => index !== indexToRemove));
   };
 
+  const handleDeployerSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setBuildInfo({ ...buildInfo, deploymentDate: deploymentDate });
+    setCurrentStage('teamLead');
+  };
+
   const handleTeamLeadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Filter out empty changes before proceeding
     const submittedChanges = changes.filter(c => c.description.trim() !== '');
     setChanges(submittedChanges.length > 0 ? submittedChanges : []);
     setCurrentStage('qa');
   };
 
   const handleSkipTeamLead = () => {
-    setChanges([]); // Clear any changes if skipping
+    setChanges([]);
     setCurrentStage('qa');
   };
   
@@ -100,7 +108,7 @@ export default function ApprovalPage() {
   return (
     <main className="container py-5">
       <div className="text-center mb-4">
-        <h1 className="display-5 fw-bold">Approval for Build #{id}</h1>
+        <h1 className="display-5 fw-bold">Approval for Build Version: {buildInfo.version}</h1>
         <p className="lead text-muted">Review and approve the changes for this build.</p>
       </div>
 
@@ -121,84 +129,103 @@ export default function ApprovalPage() {
           {currentStage === 'deployer' && (
             <div className="card shadow-sm">
               <div className="card-header fs-5 fw-bold">Deployer Approval</div>
-              <div className="card-body p-4 text-center">
-                <p>Deployer confirms the build is ready for the approval process.</p>
-                <button className="btn btn-success btn-lg" onClick={() => setCurrentStage('teamLead')}>Confirm and Proceed to Team Lead Approval</button>
+              <div className="card-body p-4">
+                <form onSubmit={handleDeployerSubmit} className="text-center">
+                  <p>Please select the target deployment date for this build.</p>
+                  <div className="mb-3 mx-auto" style={{ maxWidth: '300px' }}>
+                    <label htmlFor="deploymentDate" className="form-label fw-bold">Deployment Date</label>
+                    <input
+                      type="date"
+                      id="deploymentDate"
+                      className="form-control"
+                      value={deploymentDate}
+                      onChange={(e) => setDeploymentDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-success btn-lg mt-3">Confirm and Proceed</button>
+                </form>
               </div>
             </div>
           )}
 
           {currentStage === 'teamLead' && (
             <div className="card shadow-sm">
-              <div className="card-header fs-5 fw-bold">Team Lead Input (Optional)</div>
+              <div className="card-header fs-5 fw-bold">Team Lead Input</div>
               <div className="card-body p-4">
-                <form onSubmit={handleTeamLeadSubmit}>
-                  {changes.map((change, index) => (
-                    <div key={index} className="mb-4 p-3 border rounded">
-                      <textarea
-                        type="text"
-                        className="form-control mb-2"
-                        placeholder="Change Description"
-                        value={change.description}
-                        rows="10"
-                        onChange={(e) => {
-                          const newChanges = [...changes];
-                          newChanges[index].description = e.target.value;
-                          setChanges(newChanges);
-                        }}
-                      />
-                      <input
-                        type="text"
-                        className="form-control mb-2"
-                        placeholder="Ticket Number"
-                        value={change.ticketNumber}
-                        onChange={(e) => {
+                {!isAddingChanges ? (
+                  <div className="text-center">
+                    <p>Does this build require a change log? You can add change details or proceed directly to QA.</p>
+                    <button className="btn btn-primary me-2" onClick={() => setIsAddingChanges(true)}>Add Changes</button>
+                    <button className="btn btn-secondary" onClick={handleSkipTeamLead}>Proceed to QA (No Changes)</button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleTeamLeadSubmit}>
+                    {changes.map((change, index) => (
+                      <div key={index} className="mb-4 p-3 border rounded">
+                        <input
+                          type="text"
+                          className="form-control mb-2"
+                          placeholder="Change Description"
+                          value={change.description}
+                          onChange={(e) => {
                             const newChanges = [...changes];
-                            newChanges[index].ticketNumber = e.target.value;
+                            newChanges[index].description = e.target.value;
                             setChanges(newChanges);
-                        }}
-                      />
-                      <select
-                        className="form-select mb-2"
-                        value={change.reason}
-                        onChange={(e) => {
-                            const newChanges = [...changes];
-                            newChanges[index].reason = e.target.value;
-                            setChanges(newChanges);
-                        }}
-                      >
-                        <option value="code fix">Code Fix</option>
-                        <option value="new requirement">New Requirement</option>
-                        <option value="change in requirement">Change in Requirement</option>
-                      </select>
-                      <textarea
-                        className="form-control"
-                        placeholder="Impact Description"
-                        value={change.impact}
-                        rows="10"
-                        onChange={(e) => {
-                            const newChanges = [...changes];
-                            newChanges[index].impact = e.target.value;
-                            setChanges(newChanges);
-                        }}
-                      ></textarea>
-                       {changes.length > 1 && (
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm mt-2"
-                          onClick={() => handleRemoveChange(index)}
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="form-control mb-2"
+                          placeholder="Ticket Number"
+                          value={change.ticketNumber}
+                          onChange={(e) => {
+                              const newChanges = [...changes];
+                              newChanges[index].ticketNumber = e.target.value;
+                              setChanges(newChanges);
+                          }}
+                        />
+                        <select
+                          className="form-select mb-2"
+                          value={change.reason}
+                          onChange={(e) => {
+                              const newChanges = [...changes];
+                              newChanges[index].reason = e.target.value;
+                              setChanges(newChanges);
+                          }}
                         >
-                          <FaTrash className="me-1" /> Remove Change
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary me-2" onClick={handleAddChange}>
-                    Add Another Change
-                  </button>
-                  <button type="submit" className="btn btn-primary me-2">Submit for QA</button>
-                  <button type="button" className="btn btn-info" onClick={handleSkipTeamLead}>Proceed to QA</button>
-                </form>
+                          <option value="code fix">Code Fix</option>
+                          <option value="new requirement">New Requirement</option>
+                          <option value="change in requirement">Change in Requirement</option>
+                        </select>
+                        <textarea
+                          className="form-control"
+                          placeholder="Impact Description"
+                          value={change.impact}
+                          onChange={(e) => {
+                              const newChanges = [...changes];
+                              newChanges[index].impact = e.target.value;
+                              setChanges(newChanges);
+                          }}
+                        ></textarea>
+                         {changes.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm mt-2"
+                            onClick={() => handleRemoveChange(index)}
+                          >
+                            <FaTrash className="me-1" /> Remove Change
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button" className="btn btn-secondary me-2" onClick={handleAddChange}>
+                      Add Another Change
+                    </button>
+                    <button type="submit" className="btn btn-primary">Submit for QA</button>
+                    <button type="button" className="btn btn-light ms-2" onClick={() => setIsAddingChanges(false)}>Cancel</button>
+                  </form>
+                )}
               </div>
             </div>
           )}

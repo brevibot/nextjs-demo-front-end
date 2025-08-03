@@ -22,14 +22,20 @@ const ChangesSummaryCard: React.FC<ChangesSummaryCardProps> = ({ changes }) => {
         <span>Submitted Changes Summary</span>
       </div>
       <div className="card-body">
-        {changes.map((change, index) => (
-          <div key={index} className="mb-3 p-3 border rounded bg-light">
-            <h6 className="fw-bold">{change.description || 'No description'}</h6>
-            <p className="mb-1"><strong>Ticket:</strong> {change.ticketNumber || 'N/A'}</p>
-            <p className="mb-1"><strong>Reason:</strong> {change.reason || 'N/A'}</p>
-            <p className="mb-0"><strong>Impact:</strong> {change.impact || 'N/A'}</p>
-          </div>
-        ))}
+        {changes.length > 0 ? (
+          changes.map((change, index) => (
+            <div key={index} className="mb-3 p-3 border rounded bg-light">
+              <h6 className="fw-bold">{change.description || 'No description'}</h6>
+              <p className="mb-1"><strong>Ticket:</strong> {change.ticketNumber || 'N/A'}</p>
+              <p className="mb-1"><strong>Reason:</strong> {change.reason || 'N/A'}</p>
+              <p className="mb-0"><strong>Impact:</strong> {change.impact || 'N/A'}</p>
+            </div>
+          ))
+        ) : (
+          <p className="p-3 text-muted text-center">
+            No changes were submitted by the Team Leaders for this build.
+          </p>
+        )}
       </div>
     </div>
   );

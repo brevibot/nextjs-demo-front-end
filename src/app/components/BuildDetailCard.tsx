@@ -10,6 +10,7 @@ interface BuildInfo {
   timestamp: string;
   releaseNotes: string;
   installLink: string;
+  deploymentDate?: string;
 }
 
 interface BuildDetailCardProps {
@@ -20,20 +21,40 @@ const BuildDetailCard: React.FC<BuildDetailCardProps> = ({ buildInfo }) => {
   return (
     <div className="card shadow-sm mb-4">
       <div className="card-header fs-5 fw-bold">Build Details</div>
-      <div className="card-body p-4">
-        <div className="row">
-          <div className="col-md-12">
-            <p><strong>Build ID:</strong> {buildInfo.id}</p>
-            <p><strong>Version:</strong> {buildInfo.version}</p>
-            <p><strong>Branch:</strong> {buildInfo.branch}</p>
-            <p><strong>Commit Hash:</strong> {buildInfo.commitHash}</p>
-            <p><strong>Timestamp:</strong> {buildInfo.timestamp}</p>
-          </div>
+      <div className="card-body">
+        <ul className="list-group list-group-flush">
+          <li className="list-group-item d-flex justify-content-between">
+            <strong>Build ID:</strong>
+            <span>{buildInfo.id}</span>
+          </li>
+          <li className="list-group-item d-flex justify-content-between">
+            <strong>Version:</strong>
+            <span>{buildInfo.version}</span>
+          </li>
+          <li className="list-group-item d-flex justify-content-between">
+            <strong>Branch:</strong>
+            <span>{buildInfo.branch}</span>
+          </li>
+          <li className="list-group-item d-flex justify-content-between">
+            <strong>Commit Hash:</strong>
+            <span className="font-monospace text-truncate" style={{ maxWidth: '150px' }}>{buildInfo.commitHash}</span>
+          </li>
+          <li className="list-group-item d-flex justify-content-between">
+            <strong>Timestamp:</strong>
+            <span>{buildInfo.timestamp}</span>
+          </li>
+          {buildInfo.deploymentDate && (
+            <li className="list-group-item d-flex justify-content-between">
+              <strong>Deployment Date:</strong>
+              <span>{new Date(buildInfo.deploymentDate + 'T00:00:00').toLocaleDateString()}</span>
+            </li>
+           )}
+        </ul>
+        <div className="mt-3">
+          <h6>Release Notes</h6>
+          <p className="text-muted">{buildInfo.releaseNotes}</p>
         </div>
-        <hr />
-        <h5>Release Notes</h5>
-        <p>{buildInfo.releaseNotes}</p>
-        <a href={buildInfo.installLink} className="btn btn-info mt-3 w-100" download>Download & Install Build</a>
+        <a href={buildInfo.installLink} className="btn btn-primary w-100 mt-2">Download & Install Build</a>
       </div>
     </div>
   );
