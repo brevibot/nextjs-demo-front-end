@@ -1,63 +1,62 @@
-"use client";
-
-import React from 'react';
-
-interface BuildInfo {
-  id: string;
-  version: string;
-  branch: string;
-  commitHash: string;
-  timestamp: string;
-  releaseNotes: string;
-  installLink: string;
-  deploymentDate?: string;
-}
+import { Build } from '@/app/types';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import Link from 'next/link';
 
 interface BuildDetailCardProps {
-  buildInfo: BuildInfo;
+  // Make the build prop optional to prevent runtime errors
+  build?: Build | null;
 }
 
-const BuildDetailCard: React.FC<BuildDetailCardProps> = ({ buildInfo }) => {
+// Use the 'build' prop directly without renaming it
+export default function BuildDetailCard({ build }: BuildDetailCardProps) {
+  // Add a robust check to ensure the build object exists
+  if (!build) {
+    return (
+        <div className="card shadow-sm">
+            <div className="card-header fs-5 fw-bold">Build Details</div>
+            <div className="card-body">
+                <p>Build information is not available.</p>
+            </div>
+        </div>
+    );
+  }
+
+  const version = `${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`;
+  const timestamp = new Date(build.date).toLocaleString();
+  const deploymentDate = build.deploymentDate ? new Date(build.deploymentDate).toLocaleDateString() : 'Not set';
+
   return (
-    <div className="card shadow-sm mb-4">
+    <div className="card shadow-sm">
       <div className="card-header fs-5 fw-bold">Build Details</div>
       <div className="card-body">
         <ul className="list-group list-group-flush">
           <li className="list-group-item d-flex justify-content-between">
             <strong>Build ID:</strong>
-            <span>{buildInfo.id}</span>
+            <span>{build.id}</span>
           </li>
           <li className="list-group-item d-flex justify-content-between">
             <strong>Version:</strong>
-            <span>{buildInfo.version}</span>
+            <span>{version}</span>
           </li>
           <li className="list-group-item d-flex justify-content-between">
             <strong>Branch:</strong>
-            <span>{buildInfo.branch}</span>
-          </li>
-          <li className="list-group-item d-flex justify-content-between">
-            <strong>Commit Hash:</strong>
-            <span className="font-monospace text-truncate" style={{ maxWidth: '150px' }}>{buildInfo.commitHash}</span>
+            <span>{build.branch}</span>
           </li>
           <li className="list-group-item d-flex justify-content-between">
             <strong>Timestamp:</strong>
-            <span>{buildInfo.timestamp}</span>
+            <span>{timestamp}</span>
           </li>
-          {buildInfo.deploymentDate && (
-            <li className="list-group-item d-flex justify-content-between">
-              <strong>Deployment Date:</strong>
-              <span>{new Date(buildInfo.deploymentDate + 'T00:00:00').toLocaleDateString()}</span>
-            </li>
-           )}
+           <li className="list-group-item d-flex justify-content-between">
+            <strong>Deployment Date:</strong>
+            <span>{deploymentDate}</span>
+          </li>
         </ul>
-        <div className="mt-3">
-          <h6>Release Notes</h6>
-          <p className="text-muted">{buildInfo.releaseNotes}</p>
+        <div className="d-grid gap-2 mt-3">
+            <Link href={`/builds/${build.id}`} className="btn btn-outline-primary">
+                View Full Details
+            </Link>
         </div>
-        <a href={buildInfo.installLink} className="btn btn-primary w-100 mt-2">Download & Install Build</a>
       </div>
     </div>
   );
-};
-
-export default BuildDetailCard;
+}

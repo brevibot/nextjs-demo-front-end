@@ -1,26 +1,26 @@
-"use client";
-
-import React from 'react';
 import { Change } from '@/app/types';
-import { FaHashtag } from 'react-icons/fa';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 interface ChangesListProps {
-  changes: Change[];
+  changes?: Change[]; // Make prop optional to prevent errors
 }
 
-const ChangesList: React.FC<ChangesListProps> = ({ changes }) => {
+// Default the `changes` prop to an empty array
+export default function ChangesList({ changes = [] }: ChangesListProps) {
   return (
     <div className="card shadow-sm mt-4">
       <div className="card-header fs-5 fw-bold">Changes in this Build ({changes.length})</div>
       <ul className="list-group list-group-flush">
         {changes.length > 0 ? (
-          changes.map((change) => (
-            <li key={change.hash} className="list-group-item d-flex align-items-center">
-              <div className="flex-shrink-0 me-3 text-muted"><FaHashtag /></div>
-              <div className="flex-grow-1">
-                <p className="mb-0 fw-bold">{change.message}</p>
-                <small className="text-muted">by {change.author} • <a href={`https://github.com/example/repo/commit/${change.hash}`} target="_blank" rel="noopener noreferrer">{change.hash.substring(0, 7)}</a></small>
+          changes.map((change, index) => (
+            <li key={index} className="list-group-item">
+              <div className="d-flex w-100 justify-content-between">
+                <h6 className="mb-1">{change.message}</h6>
+                <small><code>{change.hash?.substring(0, 7)}</code></small>
               </div>
+              <p className="mb-1">
+                <small>Authored by: {change.author}</small>
+              </p>
             </li>
           ))
         ) : (
@@ -29,6 +29,4 @@ const ChangesList: React.FC<ChangesListProps> = ({ changes }) => {
       </ul>
     </div>
   );
-};
-
-export default ChangesList;
+}
