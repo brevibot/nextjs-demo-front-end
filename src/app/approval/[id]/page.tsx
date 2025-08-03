@@ -8,8 +8,10 @@ import ApprovalProcessDiagram from '@/app/components/ApprovalProcessDiagram';
 import BuildDetailCard from '@/app/components/BuildDetailCard';
 import PendingApproversCard from '@/app/components/PendingApproversCard';
 import ChangesList from '@/app/components/ChangesList';
+import ChangesSummaryCard from '@/app/components/ChangesSummaryCard'; // Import summary card
 import TeamLeadApprovalForm from '@/app/components/TeamLeadApprovalForm';
 import QAApprovalForm from '@/app/components/QAApprovalForm';
+import ManagerApprovalForm from '@/app/components/ManagerApprovalForm';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 type Stage = 'deployer' | 'teamLead' | 'qa' | 'manager' | 'approved' | 'canceled';
@@ -21,15 +23,6 @@ const statusToStageMap: { [key: string]: Stage } = {
   'PENDING_MANAGER': 'manager',
   'APPROVED': 'approved',
   'CANCELED': 'canceled'
-};
-
-const stageToDisplay: { [key in Stage]: string } = {
-    deployer: 'New',
-    teamLead: 'Team Leaders',
-    qa: 'QA',
-    manager: 'Managers',
-    approved: 'Closed',
-    canceled: 'Closed'
 };
 
 export default function ApprovalPage() {
@@ -94,9 +87,9 @@ export default function ApprovalPage() {
             setBuildInfo({ ...buildInfo, deploymentDate: deploymentDate } as Build);
             if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
               setCurrentStage(statusToStageMap[updatedRequest.status]);
+              setApprovalRequest(updatedRequest);
             }
         } catch (err: any) {
-            console.error("Failed to submit deployer approval:", err);
             setError(`Failed to submit deployer approval: ${err.message}`);
         }
     };
@@ -112,7 +105,6 @@ export default function ApprovalPage() {
                 setCurrentStage(statusToStageMap[updatedRequest.status]);
             }
         } catch (err: any) {
-            console.error("Failed to cancel approval:", err);
             setError(`Failed to cancel approval: ${err.message}`);
         }
     };
@@ -129,7 +121,6 @@ export default function ApprovalPage() {
             setError(null);
           }
         } catch (err: any) {
-          console.error("Failed to reset approval:", err);
           setError(`Failed to reset approval: ${err.message}`);
         }
     };
@@ -144,6 +135,7 @@ export default function ApprovalPage() {
             });
              if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
                 setCurrentStage(statusToStageMap[updatedRequest.status]);
+                setApprovalRequest(updatedRequest);
                 setShowTeamLeadForm(false);
             }
         } catch (err: any) {
@@ -157,7 +149,6 @@ export default function ApprovalPage() {
 
     const handleQaDecision = async (approved: boolean) => {
         if (!approvalRequestId) return;
-        
         try {
             const updatedRequest = await apiFetch(`/api/approvals/qa/${approvalRequestId}`, {
                 method: 'POST',
@@ -174,9 +165,27 @@ export default function ApprovalPage() {
         }
     };
 
+    const handleManagerDecision = async (approved: boolean) => {
+        if (!approvalRequestId) return;
+        try {
+            const updatedRequest = await apiFetch(`/api/approvals/manager/${approvalRequestId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approved, approvedBy: 'Manager User' }),
+            });
+
+             if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
+                setApprovalRequest(updatedRequest);
+                setCurrentStage(statusToStageMap[updatedRequest.status]);
+            }
+        } catch (err: any) {
+            setError(`Failed to submit manager decision: ${err.message}`);
+        }
+    };
+
     if (loading) return <div className="d-flex justify-content-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
     if (error) return <div className="alert alert-danger">{error}</div>;
-    if (!buildInfo) return <div className="alert alert-warning">Build information not found.</div>;
+    if (!buildInfo || !approvalRequest) return <div className="alert alert-warning">Build information not found.</div>;
 
     const version = `${buildInfo.majorVersion}.${buildInfo.minorVersion}.${buildInfo.patchVersion}`;
 
@@ -187,7 +196,7 @@ export default function ApprovalPage() {
                 <p className="lead">Review and approve the changes for this build.</p>
             </div>
             
-            <ApprovalProcessDiagram currentStage={stageToDisplay[currentStage]} status={approvalRequest?.status} />
+            <ApprovalProcessDiagram currentStage={currentStage} status={approvalRequest.status} />
             
             {error && <div className="alert alert-danger mt-3">{error}</div>}
             
@@ -197,7 +206,7 @@ export default function ApprovalPage() {
                          <div className="card shadow-sm mb-4">
                             <div className="card-header d-flex justify-content-between align-items-center">
                                 <h5 className="mb-0">Actions</h5>
-                                <button className="btn btn-danger" onClick={handleCancel}>Cancel Approval</button>
+                                <button className="btn btn-danger btn-sm" onClick={handleCancel}>Cancel Approval</button>
                             </div>
                             <div className="card-body">
                                 {currentStage === 'deployer' && (
@@ -238,7 +247,12 @@ export default function ApprovalPage() {
                                         onDeny={() => handleQaDecision(false)}
                                     />
                                 )}
-                                {currentStage === 'manager' && <div>Manager approval form goes here.</div>}
+                                {currentStage === 'manager' && (
+                                    <ManagerApprovalForm
+                                        onApprove={() => handleManagerDecision(true)}
+                                        onDeny={() => handleManagerDecision(false)}
+                                    />
+                                )}
                             </div>
                         </div>
                     )}
@@ -246,8 +260,8 @@ export default function ApprovalPage() {
                     {isClosed && (
                         <div className="card shadow-sm mb-4">
                             <div className="card-body text-center">
-                                {approvalRequest?.status === 'APPROVED' && <div className="alert alert-success">This approval request has been fully approved.</div>}
-                                {approvalRequest?.status === 'CANCELED' && (
+                                {approvalRequest.status === 'APPROVED' && <div className="alert alert-success">This approval request has been fully approved.</div>}
+                                {approvalRequest.status === 'CANCELED' && (
                                     <div className="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
                                         <span>This approval request has been canceled.</span>
                                         <button className="btn btn-warning btn-sm" onClick={handleReset}>
@@ -257,6 +271,10 @@ export default function ApprovalPage() {
                                 )}
                             </div>
                         </div>
+                    )}
+                    
+                    {(currentStage === 'qa' || currentStage === 'manager') && (
+                        <ChangesSummaryCard changes={approvalRequest.teamLeadChanges || []} />
                     )}
 
                     <ChangesList changes={buildInfo.changes} />

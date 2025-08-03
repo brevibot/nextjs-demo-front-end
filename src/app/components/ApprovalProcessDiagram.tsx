@@ -1,63 +1,65 @@
-"use client";
+'use client';
 
 import React from 'react';
 
-// The parent component uses these stage names.
-type OldStageId = 'deployer' | 'teamLead' | 'qa' | 'manager' | 'approved' | 'canceled';
-
-// The new design uses a different set of stages.
-type NewStageId = 'new' | 'teamLeaders' | 'qa' | 'managers' | 'closed' | 'canceled';
+type StageId = 'deployer' | 'teamLead' | 'qa' | 'manager' | 'approved' | 'canceled';
 
 interface ApprovalProcessDiagramProps {
-  currentStage: OldStageId;
+  currentStage: StageId;
+  status?: string;
 }
 
-// Map old stage names to the new visual stages to avoid breaking the parent component's logic.
-const stageMapping: Record<OldStageId, NewStageId> = {
-  deployer: 'new',
-  teamLead: 'teamLeaders',
-  qa: 'qa',
-  manager: 'managers',
-  approved: 'closed',
-  canceled: 'canceled',
+const STAGES: { id: StageId, label: string }[] = [
+  { id: 'deployer', label: 'New' },
+  { id: 'teamLead', label: 'Team Leaders' },
+  { id: 'qa', label: 'QA' },
+  { id: 'manager', label: 'Managers' },
+  { id: 'approved', label: 'Closed' },
+];
+
+const stageOrder: Record<StageId, number> = {
+  deployer: 0,
+  teamLead: 1,
+  qa: 2,
+  manager: 3,
+  approved: 4,
+  canceled: 5,
 };
 
-const ApprovalProcessDiagram: React.FC<ApprovalProcessDiagramProps> = ({ currentStage: oldStage }) => {
-  const currentStage = stageMapping[oldStage];
-
-  const stages: { id: NewStageId, label: string }[] = [
-    { id: 'new', label: 'New' },
-    { id: 'teamLeaders', label: 'Team Leaders' },
-    { id: 'qa', label: 'QA' },
-    { id: 'managers', label: 'Managers' },
-    { id: 'closed', label: 'Closed' },
-    { id: 'canceled', label: 'Canceled' },
-  ];
-
-  // Do not show the 'Canceled' stage in the main flow unless it is the active stage.
-  const visibleStages = currentStage === 'canceled' 
-    ? stages.filter(s => s.id === 'canceled') 
-    : stages.filter(s => s.id !== 'canceled');
+export default function ApprovalProcessDiagram({ currentStage, status }: ApprovalProcessDiagramProps) {
+  const currentStageIndex = stageOrder[currentStage];
+  
+  const getStageClass = (stage: StageId) => {
+    const stageIndex = stageOrder[stage];
+    if (status === 'CANCELED') return 'canceled';
+    if (stageIndex < currentStageIndex || status === 'APPROVED') return 'completed';
+    if (stage === currentStage) return 'active';
+    return '';
+  };
+  
+  if (status === 'CANCELED') {
+    return (
+        <div className="approval-diagram">
+            <div className="stage canceled">
+                <span>Canceled</span>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <>
-      <div className="diagram-container">
-        <div className="approval-diagram">
-          {visibleStages.map((stage) => (
-            <div
-              key={stage.id}
-              className={`stage ${stage.id === currentStage ? 'active' : ''} ${stage.id === 'canceled' ? 'canceled' : ''}`}
-            >
-              <span>{stage.label}</span>
-            </div>
-          ))}
-        </div>
+      <div className="approval-diagram">
+        {STAGES.map((stage) => (
+          <div
+            key={stage.id}
+            className={`stage ${getStageClass(stage.id)}`}
+          >
+            <span>{stage.label}</span>
+          </div>
+        ))}
       </div>
       <style jsx>{`
-        .diagram-container {
-          overflow-x: auto;
-          padding-bottom: 10px; /* Space for scrollbar */
-        }
         .approval-diagram {
           display: flex;
           list-style: none;
@@ -72,7 +74,7 @@ const ApprovalProcessDiagram: React.FC<ApprovalProcessDiagramProps> = ({ current
           padding: 0.6rem 0.5rem 0.6rem 1.5rem;
           margin-right: -1rem;
           position: relative;
-          background-color: #f0f2f5; /* Lighter gray */
+          background-color: #f0f2f5;
           color: #495057;
           text-align: center;
           font-size: 13px;
@@ -80,6 +82,7 @@ const ApprovalProcessDiagram: React.FC<ApprovalProcessDiagramProps> = ({ current
           clip-path: polygon(0% 0%, 90% 0%, 100% 50%, 90% 100%, 0% 100%, 10% 50%);
           white-space: nowrap;
           min-width: 100px;
+          transition: background-color 0.3s ease, color 0.3s ease;
         }
         .stage:first-child {
            padding-left: 1rem;
@@ -90,19 +93,20 @@ const ApprovalProcessDiagram: React.FC<ApprovalProcessDiagramProps> = ({ current
            clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 10% 50%);
         }
         .stage.active {
-          background-color: #0b7956; /* Dark Green */
+          background-color: #198754; /* Green */
           color: white;
         }
+        .stage.completed {
+            background-color: #d1e7dd; /* Light Green */
+            color: #0a3622;
+        }
         .stage.canceled {
-            background-color: #dc3545; /* Red for canceled */
+            background-color: #dc3545; /* Red */
             color: white;
             clip-path: none;
-            margin-right: 0;
             border-radius: 0.25rem;
         }
       `}</style>
     </>
   );
 };
-
-export default ApprovalProcessDiagram;
