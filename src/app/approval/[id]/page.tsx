@@ -7,6 +7,7 @@ import BuildDetailCard from '@/app/components/BuildDetailCard';
 import PendingApproversCard from '@/app/components/PendingApproversCard';
 import ChangesSummaryCard from '@/app/components/ChangesSummaryCard';
 import { FaExclamationTriangle, FaTrash } from 'react-icons/fa';
+import { apiFetch } from '@/app/lib/api';
 
 type Stage = 'deployer' | 'teamLead' | 'qa' | 'manager' | 'approved' | 'canceled';
 
@@ -38,10 +39,27 @@ export default function ApprovalPage() {
     installLink: `/downloads/build-${id}.zip`,
     deploymentDate: '',
   });
+  const [approvalRequestId, setApprovalRequestId] = useState<number | null>(null);
 
   useEffect(() => {
     setPendingApprovers(approversByStage[currentStage] || []);
   }, [currentStage]);
+
+  useEffect(() => {
+    const requestApproval = async () => {
+      if (id) {
+        try {
+          const response = await apiFetch(`/api/approvals/request/${id}`, {
+            method: 'POST',
+          });
+          setApprovalRequestId(response.id);
+        } catch (error) {
+          console.error('Failed to create approval request:', error);
+        }
+      }
+    };
+    requestApproval();
+  }, [id]);
 
   const handleAddChange = () => {
     setChanges([...changes, { description: '', ticketNumber: '', reason: 'code fix', impact: '' }]);
@@ -57,11 +75,24 @@ export default function ApprovalPage() {
     setCurrentStage('teamLead');
   };
 
-  const handleTeamLeadSubmit = (e: React.FormEvent) => {
+  const handleTeamLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const submittedChanges = changes.filter(c => c.description.trim() !== '');
     setChanges(submittedChanges.length > 0 ? submittedChanges : []);
-    setCurrentStage('qa');
+    if (approvalRequestId) {
+      try {
+        await apiFetch(`/api/approvals/team-lead/${approvalRequestId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(submittedChanges),
+        });
+        setCurrentStage('qa');
+      } catch (error) {
+        console.error('Failed to submit team lead changes:', error);
+      }
+    }
   };
 
   const handleSkipTeamLead = () => {
@@ -69,9 +100,22 @@ export default function ApprovalPage() {
     setCurrentStage('qa');
   };
   
-  const handleQaApprove = () => {
+  const handleQaApprove = async () => {
     console.log('QA Approved with attachment:', qaAttachment?.name || 'None');
-    setCurrentStage('manager');
+    if (approvalRequestId) {
+      try {
+        await apiFetch(`/api/approvals/qa/${approvalRequestId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ approved: true, approvedBy: 'QA User' }),
+        });
+        setCurrentStage('manager');
+      } catch (error) {
+        console.error('Failed to submit QA approval:', error);
+      }
+    }
   };
 
   const handleQaDeny = () => {
@@ -89,8 +133,21 @@ export default function ApprovalPage() {
     }
   };
 
-  const handleManagerApprove = () => {
-    setCurrentStage('approved');
+  const handleManagerApprove = async () => {
+    if (approvalRequestId) {
+      try {
+        await apiFetch(`/api/approvals/manager/${approvalRequestId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ approved: true, approvedBy: 'Manager User' }),
+        });
+        setCurrentStage('approved');
+      } catch (error) {
+        console.error('Failed to submit manager approval:', error);
+      }
+    }
   };
   
   const handleManagerDeny = () => {
