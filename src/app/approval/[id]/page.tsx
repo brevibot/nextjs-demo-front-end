@@ -32,7 +32,6 @@ const approversByStage: Record<Stage, string[]> = {
 
 export default function ApprovalPage() {
   const { id } = useParams();
-  // Set initial stage to null and let the API response determine the correct stage
   const [currentStage, setCurrentStage] = useState<Stage | null>(null);
   const [pendingApprovers, setPendingApprovers] = useState<string[]>([]);
   const [changes, setChanges] = useState([{ changeDescription: '', ticketNumber: '', reason: 'code fix', impactDescription: '' }]);
@@ -65,16 +64,13 @@ export default function ApprovalPage() {
             method: 'POST',
           });
           setApprovalRequestId(response.id);
-          // Set the initial stage based on the response from the server
           if (response.status && statusToStageMap[response.status]) {
             setCurrentStage(statusToStageMap[response.status]);
           } else {
-            // Fallback for initial creation if status isn't set yet
             setCurrentStage('deployer');
           }
         } catch (error) {
           console.error('Failed to create or fetch approval request:', error);
-          // Handle cases where the request might fail entirely
           setCurrentStage('canceled');
         }
       }
@@ -207,7 +203,6 @@ export default function ApprovalPage() {
     }
   };
 
-  // Render a loading state until the initial stage is fetched
   if (!currentStage) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: '80vh' }}>
