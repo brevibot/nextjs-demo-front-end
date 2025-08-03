@@ -11,7 +11,6 @@ import { apiFetch } from '@/app/lib/api';
 
 type Stage = 'deployer' | 'teamLead' | 'qa' | 'manager' | 'approved' | 'canceled';
 
-// Mock data for pending approvers at each stage
 const approversByStage: Record<Stage, string[]> = {
   deployer: [],
   teamLead: ['Alice (Team Lead)', 'Bob (Team Lead)'],
@@ -69,25 +68,34 @@ export default function ApprovalPage() {
     setChanges(changes.filter((_, index) => index !== indexToRemove));
   };
 
-  const handleDeployerSubmit = (e: React.FormEvent) => {
+  const handleDeployerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBuildInfo({ ...buildInfo, deploymentDate: deploymentDate });
-    setCurrentStage('teamLead');
+    if (approvalRequestId) {
+      try {
+        await apiFetch(`/api/approvals/deployer/${approvalRequestId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approved: true, approvedBy: 'Deployer User' }),
+        });
+        setBuildInfo({ ...buildInfo, deploymentDate: deploymentDate });
+        setCurrentStage('teamLead');
+      } catch (error) {
+        console.error('Failed to submit deployer approval:', error);
+      }
+    }
   };
 
   const handleTeamLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const submittedChanges = changes.filter(c => c.changeDescription.trim() !== '');
-    setChanges(submittedChanges.length > 0 ? submittedChanges : []);
     if (approvalRequestId) {
+      const submittedChanges = changes.filter(c => c.changeDescription.trim() !== '');
       try {
         await apiFetch(`/api/approvals/team-lead/${approvalRequestId}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(submittedChanges),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approvedBy: 'Team Lead User', changes: submittedChanges }),
         });
+        setChanges(submittedChanges.length > 0 ? submittedChanges : []);
         setCurrentStage('qa');
       } catch (error) {
         console.error('Failed to submit team lead changes:', error);
@@ -95,20 +103,28 @@ export default function ApprovalPage() {
     }
   };
 
-  const handleSkipTeamLead = () => {
-    setChanges([]);
-    setCurrentStage('qa');
+  const handleSkipTeamLead = async () => {
+    if (approvalRequestId) {
+      try {
+        await apiFetch(`/api/approvals/team-lead/${approvalRequestId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approvedBy: 'Team Lead User (Skipped)', changes: [] }),
+        });
+        setChanges([]);
+        setCurrentStage('qa');
+      } catch (error) {
+        console.error('Failed to skip team lead step:', error);
+      }
+    }
   };
   
   const handleQaApprove = async () => {
-    console.log('QA Approved with attachment:', qaAttachment?.name || 'None');
     if (approvalRequestId) {
       try {
         await apiFetch(`/api/approvals/qa/${approvalRequestId}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ approved: true, approvedBy: 'QA User' }),
         });
         setCurrentStage('manager');
@@ -138,9 +154,7 @@ export default function ApprovalPage() {
       try {
         await apiFetch(`/api/approvals/manager/${approvalRequestId}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ approved: true, approvedBy: 'Manager User' }),
         });
         setCurrentStage('approved');
