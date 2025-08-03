@@ -23,7 +23,7 @@ export default function BuildDetailCard({ build }: BuildDetailCardProps) {
 
   const version = `${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`;
   const timestamp = new Date(build.date).toLocaleString();
-  const deploymentDate = build.deploymentDate ? new Date(build.deploymentDate).toLocaleDateString() : 'Not set';
+  const deploymentDate = build.deploymentDate ? new Date(`${build.deploymentDate}T00:00:00`).toLocaleDateString() : 'Not set';
 
   return (
     <div className="card shadow-sm">

@@ -37,40 +37,40 @@ export default function ApprovalPage() {
     const [error, setError] = useState<string | null>(null);
     const [showTeamLeadForm, setShowTeamLeadForm] = useState(false);
     const [deploymentDate, setDeploymentDate] = useState('');
+    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
     
     useEffect(() => {
         if (!buildId) return;
 
-        const fetchBuildDetails = async () => {
+        const fetchAllData = async () => {
+            setLoading(true);
+            setError(null);
             try {
+                // 1. Fetch build details
                 const buildData = await apiFetch(`/api/builds/${buildId}`);
-                setBuildInfo(buildData);
-            } catch (err: any) {
-                setError(`Failed to fetch build details: ${err.message}`);
-            }
-        };
+                
+                // 2. Fetch changes since last release
+                const changesData = await apiFetch(`/api/builds/${buildId}/changes-since-last-release`);
+                
+                // 3. Combine build data with its changes
+                setBuildInfo({ ...buildData, changes: changesData });
 
-        const requestApproval = async () => {
-            try {
+                // 4. Initiate or fetch the approval request
                 const approvalReq = await apiFetch(`/api/approvals/request/${buildId}`, { method: 'POST' });
                 setApprovalRequest(approvalReq);
                 setApprovalRequestId(approvalReq.id);
                 if (approvalReq.status && statusToStageMap[approvalReq.status]) {
-                  setCurrentStage(statusToStageMap[approvalReq.status]);
+                setCurrentStage(statusToStageMap[approvalReq.status]);
                 }
+
             } catch (err: any) {
-                setError(`Failed to initiate or fetch approval request: ${err.message}`);
+                setError(`Failed to fetch approval details: ${err.message}`);
+            } finally {
+                setLoading(false);
             }
         };
 
-        const run = async () => {
-            setLoading(true);
-            await fetchBuildDetails();
-            await requestApproval();
-            setLoading(false);
-        };
-
-        run();
+        fetchAllData();
     }, [buildId]);
     
     const isClosed = currentStage === 'approved' || currentStage === 'canceled';
@@ -221,6 +221,7 @@ export default function ApprovalPage() {
                                                 id="deploymentDate" 
                                                 value={deploymentDate} 
                                                 onChange={(e) => setDeploymentDate(e.target.value)} 
+                                                min={today}
                                                 required 
                                             />
                                         </div>
