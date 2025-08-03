@@ -85,7 +85,7 @@ export default function BuildsPage() {
 
     fetchBuilds();
     // Set up an interval to refetch the current page data
-    const interval = setInterval(fetchBuilds, 10000);
+    const interval = setInterval(fetchBuilds, 30 * 1000);
     return () => clearInterval(interval);
   }, [currentPage, selectedBranch, buildsPerPage]);
   
@@ -204,7 +204,7 @@ export default function BuildsPage() {
     <main className="container py-4">
       <div className="text-center mb-4">
         <h1 className="display-4 fw-bold">🚀 Build Dashboard</h1>
-        <p className="lead text-muted">Latest builds, auto-refreshing every 10 seconds.</p>
+        <p className="lead text-muted">Latest builds, auto-refreshing every 30 seconds.</p>
       </div>
       <div className="row justify-content-center mb-4 align-items-center">
         <div className="col-md-4">

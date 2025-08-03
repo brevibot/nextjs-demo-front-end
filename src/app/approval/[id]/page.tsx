@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { apiFetch } from '@/app/lib/api';
-import { Build, ApprovalRequest } from '@/app/types';
+import { Build, ApprovalRequest, TeamLeadChange } from '@/app/types';
 import ApprovalProcessDiagram from '@/app/components/ApprovalProcessDiagram';
 import BuildDetailCard from '@/app/components/BuildDetailCard';
 import PendingApproversCard from '@/app/components/PendingApproversCard';
-import 'bootstrap/dist/css/bootstrap.min.css';
 import ChangesList from '@/app/components/ChangesList';
+import TeamLeadApprovalForm from '@/app/components/TeamLeadApprovalForm';
+import QAApprovalForm from '@/app/components/QAApprovalForm';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 type Stage = 'deployer' | 'teamLead' | 'qa' | 'manager' | 'approved' | 'canceled';
 
@@ -40,8 +42,7 @@ export default function ApprovalPage() {
     const [currentStage, setCurrentStage] = useState<Stage>('deployer');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    // Form states
+    const [showTeamLeadForm, setShowTeamLeadForm] = useState(false);
     const [deploymentDate, setDeploymentDate] = useState('');
     
     useEffect(() => {
@@ -90,7 +91,6 @@ export default function ApprovalPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ approved: true, approvedBy: 'Deployer User' }),
             });
-            // This is just a mock update for the UI. The actual date is not saved in this step.
             setBuildInfo({ ...buildInfo, deploymentDate: deploymentDate } as Build);
             if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
               setCurrentStage(statusToStageMap[updatedRequest.status]);
@@ -104,11 +104,8 @@ export default function ApprovalPage() {
     const handleCancel = async () => {
         if (!approvalRequestId) return;
         try {
-            // A generic "deny" at deployer stage.
-            const updatedRequest = await apiFetch(`/api/approvals/deployer/${approvalRequestId}`, {
+            const updatedRequest = await apiFetch(`/api/approvals/cancel/${approvalRequestId}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ approved: false, approvedBy: 'Deployer User' }),
             });
             if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
                 setApprovalRequest(updatedRequest);
@@ -119,7 +116,7 @@ export default function ApprovalPage() {
             setError(`Failed to cancel approval: ${err.message}`);
         }
     };
-
+    
     const handleReset = async () => {
         if (!approvalRequestId) return;
         try {
@@ -127,8 +124,8 @@ export default function ApprovalPage() {
             method: 'POST',
           });
           if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
-            setApprovalRequest(updatedRequest); // Update the whole request object
-            setCurrentStage(statusToStageMap[updatedRequest.status]); // Set stage back to deployer
+            setApprovalRequest(updatedRequest);
+            setCurrentStage(statusToStageMap[updatedRequest.status]);
             setError(null);
           }
         } catch (err: any) {
@@ -137,6 +134,45 @@ export default function ApprovalPage() {
         }
     };
 
+    const handleTeamLeadSubmit = async (changes: TeamLeadChange[], approvedBy: string) => {
+        if (!approvalRequestId) return;
+        try {
+            const updatedRequest = await apiFetch(`/api/approvals/team-lead/${approvalRequestId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approvedBy, changes }),
+            });
+             if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
+                setCurrentStage(statusToStageMap[updatedRequest.status]);
+                setShowTeamLeadForm(false);
+            }
+        } catch (err: any) {
+            setError(`Failed to submit team lead approval: ${err.message}`);
+        }
+    };
+
+    const handleProceedToQa = () => {
+        handleTeamLeadSubmit([], "Team Lead (No Changes)");
+    };
+
+    const handleQaDecision = async (approved: boolean) => {
+        if (!approvalRequestId) return;
+        
+        try {
+            const updatedRequest = await apiFetch(`/api/approvals/qa/${approvalRequestId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approved, approvedBy: 'QA User' }),
+            });
+
+             if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
+                setApprovalRequest(updatedRequest);
+                setCurrentStage(statusToStageMap[updatedRequest.status]);
+            }
+        } catch (err: any) {
+            setError(`Failed to submit QA decision: ${err.message}`);
+        }
+    };
 
     if (loading) return <div className="d-flex justify-content-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
     if (error) return <div className="alert alert-danger">{error}</div>;
@@ -158,7 +194,7 @@ export default function ApprovalPage() {
             <div className="row mt-4 g-4">
                 <div className="col-lg-8">
                     {!isClosed && (
-                        <div className="card shadow-sm mb-4">
+                         <div className="card shadow-sm mb-4">
                             <div className="card-header d-flex justify-content-between align-items-center">
                                 <h5 className="mb-0">Actions</h5>
                                 <button className="btn btn-danger" onClick={handleCancel}>Cancel Approval</button>
@@ -182,8 +218,26 @@ export default function ApprovalPage() {
                                         <button type="submit" className="btn btn-primary">Confirm and Proceed</button>
                                     </form>
                                 )}
-                                {currentStage === 'teamLead' && <div>Team Lead approval form goes here.</div>}
-                                {currentStage === 'qa' && <div>QA approval form goes here.</div>}
+                                {currentStage === 'teamLead' && !showTeamLeadForm && (
+                                    <div>
+                                        <h4>Team Leader Approval</h4>
+                                        <p>Are there any changes required for this build?</p>
+                                        <button className="btn btn-primary me-2" onClick={() => setShowTeamLeadForm(true)}>Add Changes</button>
+                                        <button className="btn btn-success" onClick={handleProceedToQa}>Proceed to QA (No Changes)</button>
+                                    </div>
+                                )}
+                                {currentStage === 'teamLead' && showTeamLeadForm && (
+                                    <TeamLeadApprovalForm 
+                                        onSubmit={handleTeamLeadSubmit} 
+                                        onCancel={() => setShowTeamLeadForm(false)} 
+                                    />
+                                )}
+                                {currentStage === 'qa' && (
+                                    <QAApprovalForm 
+                                        onApprove={() => handleQaDecision(true)}
+                                        onDeny={() => handleQaDecision(false)}
+                                    />
+                                )}
                                 {currentStage === 'manager' && <div>Manager approval form goes here.</div>}
                             </div>
                         </div>
