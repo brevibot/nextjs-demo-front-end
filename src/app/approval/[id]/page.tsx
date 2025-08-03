@@ -11,6 +11,16 @@ import { apiFetch } from '@/app/lib/api';
 
 type Stage = 'deployer' | 'teamLead' | 'qa' | 'manager' | 'approved' | 'canceled';
 
+// Map backend status to frontend stage name
+const statusToStageMap: { [key: string]: Stage } = {
+  PENDING_DEPLOYER: 'deployer',
+  PENDING_TEAM_LEAD: 'teamLead',
+  PENDING_QA: 'qa',
+  PENDING_MANAGER: 'manager',
+  APPROVED: 'approved',
+  CANCELED: 'canceled',
+};
+
 const approversByStage: Record<Stage, string[]> = {
   deployer: [],
   teamLead: ['Alice (Team Lead)', 'Bob (Team Lead)'],
@@ -22,7 +32,8 @@ const approversByStage: Record<Stage, string[]> = {
 
 export default function ApprovalPage() {
   const { id } = useParams();
-  const [currentStage, setCurrentStage] = useState<Stage>('deployer');
+  // Set initial stage to null and let the API response determine the correct stage
+  const [currentStage, setCurrentStage] = useState<Stage | null>(null);
   const [pendingApprovers, setPendingApprovers] = useState<string[]>([]);
   const [changes, setChanges] = useState([{ changeDescription: '', ticketNumber: '', reason: 'code fix', impactDescription: '' }]);
   const [qaAttachment, setQaAttachment] = useState<File | null>(null);
@@ -41,7 +52,9 @@ export default function ApprovalPage() {
   const [approvalRequestId, setApprovalRequestId] = useState<number | null>(null);
 
   useEffect(() => {
-    setPendingApprovers(approversByStage[currentStage] || []);
+    if (currentStage) {
+      setPendingApprovers(approversByStage[currentStage] || []);
+    }
   }, [currentStage]);
 
   useEffect(() => {
@@ -52,8 +65,17 @@ export default function ApprovalPage() {
             method: 'POST',
           });
           setApprovalRequestId(response.id);
+          // Set the initial stage based on the response from the server
+          if (response.status && statusToStageMap[response.status]) {
+            setCurrentStage(statusToStageMap[response.status]);
+          } else {
+            // Fallback for initial creation if status isn't set yet
+            setCurrentStage('deployer');
+          }
         } catch (error) {
-          console.error('Failed to create approval request:', error);
+          console.error('Failed to create or fetch approval request:', error);
+          // Handle cases where the request might fail entirely
+          setCurrentStage('canceled');
         }
       }
     };
@@ -72,13 +94,15 @@ export default function ApprovalPage() {
     e.preventDefault();
     if (approvalRequestId) {
       try {
-        await apiFetch(`/api/approvals/deployer/${approvalRequestId}`, {
+        const updatedRequest = await apiFetch(`/api/approvals/deployer/${approvalRequestId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ approved: true, approvedBy: 'Deployer User' }),
         });
         setBuildInfo({ ...buildInfo, deploymentDate: deploymentDate });
-        setCurrentStage('teamLead');
+        if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
+          setCurrentStage(statusToStageMap[updatedRequest.status]);
+        }
       } catch (error) {
         console.error('Failed to submit deployer approval:', error);
       }
@@ -90,13 +114,15 @@ export default function ApprovalPage() {
     if (approvalRequestId) {
       const submittedChanges = changes.filter(c => c.changeDescription.trim() !== '');
       try {
-        await apiFetch(`/api/approvals/team-lead/${approvalRequestId}`, {
+        const updatedRequest = await apiFetch(`/api/approvals/team-lead/${approvalRequestId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ approvedBy: 'Team Lead User', changes: submittedChanges }),
         });
         setChanges(submittedChanges.length > 0 ? submittedChanges : []);
-        setCurrentStage('qa');
+        if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
+          setCurrentStage(statusToStageMap[updatedRequest.status]);
+        }
       } catch (error) {
         console.error('Failed to submit team lead changes:', error);
       }
@@ -106,13 +132,15 @@ export default function ApprovalPage() {
   const handleSkipTeamLead = async () => {
     if (approvalRequestId) {
       try {
-        await apiFetch(`/api/approvals/team-lead/${approvalRequestId}`, {
+        const updatedRequest = await apiFetch(`/api/approvals/team-lead/${approvalRequestId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ approvedBy: 'Team Lead User (Skipped)', changes: [] }),
         });
         setChanges([]);
-        setCurrentStage('qa');
+        if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
+          setCurrentStage(statusToStageMap[updatedRequest.status]);
+        }
       } catch (error) {
         console.error('Failed to skip team lead step:', error);
       }
@@ -122,12 +150,14 @@ export default function ApprovalPage() {
   const handleQaApprove = async () => {
     if (approvalRequestId) {
       try {
-        await apiFetch(`/api/approvals/qa/${approvalRequestId}`, {
+        const updatedRequest = await apiFetch(`/api/approvals/qa/${approvalRequestId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ approved: true, approvedBy: 'QA User' }),
         });
-        setCurrentStage('manager');
+        if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
+          setCurrentStage(statusToStageMap[updatedRequest.status]);
+        }
       } catch (error) {
         console.error('Failed to submit QA approval:', error);
       }
@@ -136,7 +166,6 @@ export default function ApprovalPage() {
 
   const handleQaDeny = () => {
     if (window.confirm('Are you sure you want to deny this build? This will cancel the process.')) {
-      console.log('QA Denied with attachment:', qaAttachment?.name || 'None');
       setCurrentStage('canceled');
     }
   };
@@ -152,12 +181,14 @@ export default function ApprovalPage() {
   const handleManagerApprove = async () => {
     if (approvalRequestId) {
       try {
-        await apiFetch(`/api/approvals/manager/${approvalRequestId}`, {
+        const updatedRequest = await apiFetch(`/api/approvals/manager/${approvalRequestId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ approved: true, approvedBy: 'Manager User' }),
         });
-        setCurrentStage('approved');
+        if (updatedRequest.status && statusToStageMap[updatedRequest.status]) {
+          setCurrentStage(statusToStageMap[updatedRequest.status]);
+        }
       } catch (error) {
         console.error('Failed to submit manager approval:', error);
       }
@@ -175,6 +206,17 @@ export default function ApprovalPage() {
       setCurrentStage('canceled');
     }
   };
+
+  // Render a loading state until the initial stage is fetched
+  if (!currentStage) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '80vh' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading Approval Process...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="container py-5">
