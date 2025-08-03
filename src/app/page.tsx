@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Build, SpringApiResponse } from './types';
@@ -37,17 +37,36 @@ export default function BuildsPage() {
   const [allBranches, setAllBranches] = useState<string[]>(['all']);
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [selectedBuilds, setSelectedBuilds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [buildsPerPage] = useState(9);
   const router = useRouter();
 
+  // Reset to the first page whenever the branch filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedBranch]);
+
+  // Fetch builds when page or filter changes
   useEffect(() => {
     const fetchBuilds = async () => {
+      setIsLoading(true);
       try {
-        const response: SpringApiResponse<Build> = await apiFetch('/api/builds?sort=date,desc');
+        // Adjust page number for 0-indexed API
+        const page = currentPage - 1;
+        let url = '';
+
+        if (selectedBranch === 'all') {
+          url = `/api/builds?sort=date,desc&page=${page}&size=${buildsPerPage}`;
+        } else {
+          // Use the search endpoint for filtering by branch
+          url = `/api/builds/search/findByBranch?branch=${encodeURIComponent(selectedBranch)}&sort=date,desc&page=${page}&size=${buildsPerPage}`;
+        }
+        
+        const response: SpringApiResponse = await apiFetch(url);
         const buildsData = response._embedded?.builds || [];
         setBuilds(buildsData);
-
-        const branches = ['all', ...new Set(buildsData.map(b => b.branch))];
-        setAllBranches(branches);
+        setTotalPages(response.page?.totalPages || 0);
 
       } catch (err) {
         if (err instanceof UnauthorizedError) {
@@ -56,6 +75,8 @@ export default function BuildsPage() {
           setIsApiDown(true);
         } else {
           setError((err as Error).message);
+          setBuilds([]);
+          setTotalPages(0);
         }
       } finally {
         setIsLoading(false);
@@ -63,9 +84,28 @@ export default function BuildsPage() {
     };
 
     fetchBuilds();
+    // Set up an interval to refetch the current page data
     const interval = setInterval(fetchBuilds, 10000);
     return () => clearInterval(interval);
+  }, [currentPage, selectedBranch, buildsPerPage]);
+  
+  // Effect for fetching all unique branch names for the filter dropdown
+  useEffect(() => {
+      const fetchAllBranches = async () => {
+          try {
+              // Fetch a large page to get a representative list of branches
+              const response: SpringApiResponse = await apiFetch('/api/builds?size=200');
+              const buildsData = response._embedded?.builds || [];
+              const uniqueBranches = ['all', ...Array.from(new Set(buildsData.map(b => b.branch)))];
+              setAllBranches(uniqueBranches);
+          } catch (err) {
+              // Handle errors if necessary, but we can proceed with a default list
+              console.error("Failed to fetch branches:", err);
+          }
+      };
+      fetchAllBranches();
   }, []);
+
 
   const handleSelectBuild = (buildId: string, isSelected: boolean) => {
     const newSelection = new Set(selectedBuilds);
@@ -86,15 +126,79 @@ export default function BuildsPage() {
     }
   };
 
-  const filteredBuilds = useMemo(() => {
-    if (selectedBranch === 'all') return builds;
-    return builds.filter(build => build.branch === selectedBranch);
-  }, [builds, selectedBranch]);
+  const paginate = (pageNumber: number) => {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
+  
+  const PageContent = () => {
+    if (isLoading) {
+      return <div className="d-flex justify-content-center p-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
+    }
+    if (error) {
+      return <div className="alert alert-danger text-center m-4">Error: {error}</div>;
+    }
+    if (builds.length === 0) {
+        return <div className="alert alert-info text-center m-4">No builds found.</div>;
+    }
+
+    return (
+        <div className="row g-4">
+        {builds.map((build) => {
+          const statusColor = getStatusColor(build.buildStatus);
+          const branchColorClass = getBranchColor(build.branch);
+          const buildId = build._links.self.href.split('/').pop()!;
+          const isSelected = selectedBuilds.has(buildId);
+
+          return (
+            <div key={build.buildNumber} className="col-lg-4 col-md-6">
+              <div className={`card h-100 shadow-sm border-start border-3 border-${statusColor}`}>
+                <div className="card-header bg-light d-flex justify-content-between align-items-center">
+                  <span className={`badge ${branchColorClass} py-2 px-3`}>{build.branch}</span>
+                  <span className="fw-bold fs-5">{`${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`}</span>
+                </div>
+                <div className="card-body d-flex flex-column">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className={`fw-bold text-uppercase text-${statusColor}`}>{build.buildStatus}</span>
+                    <div>
+                      {build.isRelease && <span className="badge rounded-pill bg-primary-subtle text-primary-emphasis ms-2">Released</span>}
+                      {build.approved && <span className="badge rounded-pill bg-success-subtle text-success-emphasis ms-2">Approved</span>}
+                    </div>
+                  </div>
+                  <p className="card-text text-muted small">Build #{build.buildNumber} &bull; {new Date(build.date).toLocaleString()}</p>
+                </div>
+                <div className="card-footer bg-light d-flex justify-content-between align-items-center">
+                  <div>
+                    <Link href={`/builds/${buildId}`} className="btn btn-primary btn-sm">View Details</Link>
+                    {build.installLink && (
+                        <a href={build.installLink} className="btn btn-success btn-sm ms-2" target="_blank" rel="noopener noreferrer">
+                            Install
+                        </a>
+                    )}
+                  </div>
+                  <div className="form-check">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      id={`compare-${buildId}`}
+                      checked={isSelected}
+                      onChange={(e) => handleSelectBuild(buildId, e.target.checked)}
+                      disabled={!isSelected && selectedBuilds.size >= 2}
+                    />
+                    <label className="form-check-label" htmlFor={`compare-${buildId}`}>Compare</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   if (isApiDown) return <ApiDownErrorComponent />;
   if (isUnauthorized) return <UnauthorizedAccess />;
-  if (isLoading) return <div className="d-flex justify-content-center p-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
-  if (error) return <div className="alert alert-danger text-center m-4">Error: {error}</div>;
 
   return (
     <main className="container py-4">
@@ -114,48 +218,28 @@ export default function BuildsPage() {
           </button>
         </div>
       </div>
-      <div className="row g-4">
-        {filteredBuilds.map((build) => {
-          const statusColor = getStatusColor(build.buildStatus);
-          const branchColorClass = getBranchColor(build.branch);
-          const buildId = build._links.self.href.split('/').pop()!;
-          const isSelected = selectedBuilds.has(buildId);
+      
+      <PageContent />
 
-          return (
-            <div key={build.buildNumber} className="col-lg-4 col-md-6">
-              <div className={`card h-100 shadow-sm border-start border-3 border-${statusColor}`}>
-                <div className="card-header bg-light d-flex justify-content-between align-items-center">
-                  <span className={`badge ${branchColorClass} py-2 px-3`}>{build.branch}</span>
-                  <span className="fw-bold fs-5">{`${build.majorVersion}.${build.minorVersion}.${build.patchVersion}`}</span>
-                </div>
-                <div className="card-body d-flex flex-column">
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <span className={`fw-bold text-uppercase text-${statusColor}`}>{build.buildStatus}</span>
-                    <div>
-                      {build.isRelease && <span className="badge rounded-pill bg-primary-subtle text-primary-emphasis ms-2">Released</span>}
-                    </div>
-                  </div>
-                  <p className="card-text text-muted small">Build #{build.buildNumber} &bull; {new Date(build.date).toLocaleString()}</p>
-                </div>
-                <div className="card-footer bg-light d-flex justify-content-between align-items-center">
-                  <Link href={`/builds/${buildId}`} className="btn btn-primary btn-sm">View Details</Link>
-                  <div className="form-check">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      id={`compare-${buildId}`}
-                      checked={isSelected}
-                      onChange={(e) => handleSelectBuild(buildId, e.target.checked)}
-                      disabled={!isSelected && selectedBuilds.size >= 2}
-                    />
-                    <label className="form-check-label" htmlFor={`compare-${buildId}`}>Compare</label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {totalPages > 1 && (
+        <nav aria-label="Builds pagination" className="mt-4">
+          <ul className="pagination justify-content-center">
+            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+              <button className="page-link" onClick={() => paginate(currentPage - 1)}>&laquo;</button>
+            </li>
+            {[...Array(totalPages).keys()].map(number => (
+              <li key={number + 1} className={`page-item ${currentPage === number + 1 ? 'active' : ''}`}>
+                <button onClick={() => paginate(number + 1)} className="page-link">
+                  {number + 1}
+                </button>
+              </li>
+            ))}
+            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+              <button className="page-link" onClick={() => paginate(currentPage + 1)}>&raquo;</button>
+            </li>
+          </ul>
+        </nav>
+      )}
     </main>
   );
 }

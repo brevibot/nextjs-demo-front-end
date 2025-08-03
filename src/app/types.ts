@@ -1,19 +1,23 @@
+
 export interface Build {
-  id: number; // The primary key from the database
+  id: string;
   buildNumber: number;
   majorVersion: number;
   minorVersion: number;
   patchVersion: number;
-  buildStatus: "SUCCESS" | "FAILURE" | "IN_PROGRESS";
+  buildStatus: string;
   date: string;
   installLink: string;
   githubActionLink: string;
+  sonatypeNexusLink: string;
   branch: string;
   isRelease: boolean;
-  tags?: string[];
+  approved: boolean; // Add this line
+  changes: Change[];
   _links: {
-    changes?: { href: string };
     self: { href: string };
+    build: { href: string };
+    changes: { href: string };
   };
 }
 
